@@ -1,115 +1,153 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="mr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NEET Question Bank Dashboard</title>
+    <title>Admin Portal - NEET Exam</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <style>
-        body { background-color: #f4f7f6; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        .card { border: none; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
-        .bg-primary-custom { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
-        .bg-success-custom { background: linear-gradient(135deg, #2af598 0%, #009efd 100%); color: white; }
+        body { background-color: #f8f9fa; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .card { border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); border: none; margin-bottom: 20px;}
+        .loader { display: none; text-align: center; margin: 20px; font-weight: bold; color: #dc3545; }
     </style>
 </head>
 <body>
 
-<div class="container mt-5">
-    <h2 class="text-center mb-4 fw-bold" style="color: #333;">🚀 NEET AI Question Bank - Live Dashboard</h2>
-    
-    <div class="row mb-4 text-center">
-        <div class="col-md-6 mb-3">
-            <div class="card bg-primary-custom p-4">
-                <h5>एकूण तयार झालेले प्रश्न</h5>
-                <h1 class="display-4 fw-bold" id="totalQuestions">Loading...</h1>
-            </div>
-        </div>
-        <div class="col-md-6 mb-3">
-            <div class="card bg-success-custom p-4">
-                <h5>लास्ट अपडेट टाईम (IST)</h5>
-                <h2 class="mt-2 fw-bold" id="lastUpdated" style="font-size: 2rem;">Loading...</h2>
-            </div>
-        </div>
+<nav class="navbar navbar-dark bg-dark mb-4">
+    <div class="container">
+        <a class="navbar-brand fw-bold" href="#">⚙️ Admin Control Panel</a>
     </div>
+</nav>
 
-    <div class="card p-4">
-        <h4 class="mb-3 border-bottom pb-2">विषयवार (Subject-wise) अहवाल</h4>
-        <div class="table-responsive">
-            <table class="table table-hover table-striped" id="statsTable">
-                <thead class="table-dark">
-                    <tr>
-                        <th>Subject (विषय)</th>
-                        <th>Chapter (चाप्टर)</th>
-                        <th>Total Questions (एकूण प्रश्न)</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    </tbody>
-            </table>
+<div class="container">
+    <div id="loader" class="loader">प्रोसेस करत आहे... कृपया थांबा ⏳</div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card p-4">
+                <h4 class="mb-4 text-primary">📝 नवीन परीक्षा जनरेट करा</h4>
+                
+                <label>परीक्षेचे नाव (उदा. Sunday Mega Test):</label>
+                <input type="text" id="exTitle" class="form-control mb-3" placeholder="परीक्षेचे नाव">
+                
+                <label>विषय निवडा:</label>
+                <select id="exSubject" class="form-select mb-3">
+                    <option value="All">All Subjects (संपूर्ण अभ्यासक्रम)</option>
+                    <option value="Physics">Physics</option>
+                    <option value="Chemistry">Chemistry</option>
+                    <option value="Botany">Botany</option>
+                    <option value="Zoology">Zoology</option>
+                </select>
+                
+                <label>चाप्टरचे नाव (किंवा All):</label>
+                <input type="text" id="exChapter" class="form-control mb-3" value="All">
+                
+                <label>प्रश्नांची संख्या (उदा. 30, 50, 100):</label>
+                <input type="number" id="exLimit" class="form-control mb-4" value="30">
+                
+                <button class="btn btn-primary w-100 fw-bold" onclick="createExam()">🚀 परीक्षा लाईव्ह करा</button>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card p-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h4 class="text-success m-0">👤 नवीन विद्यार्थी रिक्वेस्ट</h4>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="loadPendingStudents()">🔄 Refresh</button>
+                </div>
+                
+                <div class="table-responsive">
+                    <table class="table table-striped align-middle">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>नाव</th>
+                                <th>मोबाईल</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pendingList">
+                            <tr><td colspan="3" class="text-center">सध्या कोणतीही रिक्वेस्ट नाही.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 
 <script>
-    // 🔴 महत्त्वाची सूचना: खालील '...' च्या जागी तुम्ही मगाशी कॉपी केलेली Google Sheet ची CSV लिंक टाका! 
-    const csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQE-zxBfsIeBxpb09LhcSsRCsJG6zLT3vT6jwP-g7PgHp9SV8iuPvmW_6pdvK_S4IYLOLvUEl2_a5k2/pub?gid=0&single=true&output=csv';
+    // 🔴 इथे तुमची नवीन WEB APP URL (API Link) टाका
+    const API_URL = 'https://script.google.com/macros/s/AKfycbwArTpmqO0zy9xF4ypuBDD-9I57koEPfcNxtIAb_OSxeKrHWAYo4yNKMT73KYtG7k9wFg/exec';
 
-    Papa.parse(csvUrl, {
-        download: true,
-        header: false,
-        complete: function(results) {
-            const data = results.data;
-            let total = 0;
-            let lastUpdate = '';
-            let counts = {};
-
-            // पहिल्या ओळीत Headers असतील तर ती ओळ वगळण्यासाठी
-            let startIndex = (data.length > 0 && data[0][1] === 'Subject') ? 1 : 0;
-
-            for (let i = startIndex; i < data.length; i++) {
-                let row = data[i];
-                // कॉलम A (Question ID) आणि कॉलम K (Timestamp) अस्तित्वात असल्याची खात्री करा
-                if (row.length >= 11 && row[0]) { 
-                    total++;
-                    let subject = row[1];
-                    let chapter = row[2];
-                    let timestamp = row[10];
-
-                    // सर्वात नवीन वेळ शोधणे
-                    if (timestamp > lastUpdate) {
-                        lastUpdate = timestamp;
-                    }
-
-                    // विषय आणि चाप्टरनुसार प्रश्नांची मोजणी
-                    let key = subject + " | " + chapter;
-                    if (!counts[key]) {
-                        counts[key] = { subject: subject, chapter: chapter, count: 0 };
-                    }
-                    counts[key].count++;
-                }
-            }
-
-            // डॅशबोर्डवर आकडे दाखवणे
-            document.getElementById('totalQuestions').innerText = total;
-            document.getElementById('lastUpdated').innerText = lastUpdate || 'माहिती नाही';
-
-            // टेबलमध्ये माहिती भरणे
-            const tbody = document.querySelector('#statsTable tbody');
-            tbody.innerHTML = '';
-            
-            // विषयानुसार यादी सॉर्ट करणे
-            let sortedKeys = Object.keys(counts).sort();
-
-            sortedKeys.forEach(key => {
-                let item = counts[key];
-                let tr = document.createElement('tr');
-                tr.innerHTML = `<td><strong>${item.subject}</strong></td><td>${item.chapter}</td><td class="fs-5 fw-bold text-primary">${item.count}</td>`;
-                tbody.appendChild(tr);
+    // API ला डेटा पाठवणारे फंक्शन
+    async function callAPI(payload) {
+        document.getElementById('loader').style.display = 'block';
+        try {
+            const response = await fetch(API_URL, {
+                method: 'POST',
+                body: JSON.stringify(payload)
             });
+            const data = await response.json();
+            document.getElementById('loader').style.display = 'none';
+            return data;
+        } catch (error) {
+            document.getElementById('loader').style.display = 'none';
+            alert("Network Error!");
         }
-    });
-</script>
+    }
 
+    // १. परीक्षा बनवणे
+    async function createExam() {
+        const title = document.getElementById('exTitle').value;
+        const subject = document.getElementById('exSubject').value;
+        const chapter = document.getElementById('exChapter').value;
+        const limit = document.getElementById('exLimit').value;
+
+        if(!title) return alert("परीक्षेचे नाव टाकणे आवश्यक आहे.");
+
+        const res = await callAPI({ action: "createExam", title, subject, chapter, limit: parseInt(limit) });
+        if(res && res.status === "success") {
+            alert(res.message);
+            document.getElementById('exTitle').value = ""; // बॉक्स रिकामा करणे
+        } else {
+            alert("परीक्षा तयार करण्यात अडचण आली.");
+        }
+    }
+
+    // २. पेंडिंग विद्यार्थी लोड करणे
+    async function loadPendingStudents() {
+        const res = await callAPI({ action: "getPendingStudents" });
+        const list = document.getElementById('pendingList');
+        list.innerHTML = '';
+
+        if(res && res.status === "success" && res.data.length > 0) {
+            res.data.forEach(stu => {
+                list.innerHTML += `
+                    <tr>
+                        <td><strong>${stu.name}</strong></td>
+                        <td>${stu.mobile}</td>
+                        <td><button class="btn btn-sm btn-success fw-bold" onclick="activateStudent('${stu.id}')">Approve</button></td>
+                    </tr>
+                `;
+            });
+        } else {
+            list.innerHTML = '<tr><td colspan="3" class="text-center text-muted">सर्व विद्यार्थी ॲक्टिव्ह आहेत.</td></tr>';
+        }
+    }
+
+    // ३. विद्यार्थ्याला ॲक्टिव्ह करणे
+    async function activateStudent(studentId) {
+        if(!confirm("या विद्यार्थ्याला ॲक्टिव्ह करायचे आहे का?")) return;
+        
+        const res = await callAPI({ action: "activateStudent", studentId });
+        if(res && res.status === "success") {
+            alert(res.message);
+            loadPendingStudents(); // यादी पुन्हा रिफ्रेश करणे
+        }
+    }
+
+    // पेज लोड झाल्यावर एकदा पेंडिंग लिस्ट चेक करणे
+    window.onload = loadPendingStudents;
+</script>
 </body>
 </html>
