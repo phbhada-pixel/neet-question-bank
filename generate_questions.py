@@ -17,9 +17,14 @@ creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
 client = gspread.authorize(creds)
 sheet = client.open_by_key(SHEET_ID).sheet1
 
+# गुगल शीटमधील आधीचे सर्व प्रश्न वाचून घेणे (Column D मध्ये प्रश्न आहेत असे मानून)
+try:
+    existing_questions_list = sheet.col_values(4) 
+except:
+    existing_questions_list = []
+
 # २. NEET चा संपूर्ण सिलॅबस
 syllabus = [
-    # --- PHYSICS (Class 11 & 12) ---
     {"subject": "Physics", "chapter": "Physics and Measurement"},
     {"subject": "Physics", "chapter": "Kinematics"},
     {"subject": "Physics", "chapter": "Laws of Motion"},
@@ -41,8 +46,6 @@ syllabus = [
     {"subject": "Physics", "chapter": "Atoms and Nuclei"},
     {"subject": "Physics", "chapter": "Electronic Devices (Semiconductor Electronics)"},
     {"subject": "Physics", "chapter": "Experimental Skills"},
-
-    # --- CHEMISTRY (Class 11 & 12) ---
     {"subject": "Chemistry", "chapter": "Some Basic Concepts of Chemistry"},
     {"subject": "Chemistry", "chapter": "Structure of Atom"},
     {"subject": "Chemistry", "chapter": "Classification of Elements and Periodicity in Properties"},
@@ -69,8 +72,6 @@ syllabus = [
     {"subject": "Chemistry", "chapter": "Biomolecules"},
     {"subject": "Chemistry", "chapter": "Polymers"},
     {"subject": "Chemistry", "chapter": "Chemistry in Everyday Life"},
-
-    # --- BIOLOGY (Class 11 & 12) ---
     {"subject": "Biology", "chapter": "The Living World"},
     {"subject": "Biology", "chapter": "Biological Classification"},
     {"subject": "Biology", "chapter": "Plant Kingdom"},
@@ -111,12 +112,18 @@ syllabus = [
     {"subject": "Biology", "chapter": "Environmental Issues"}
 ]
 
-# रँडमली विषय निवडणे
 selected_topic = random.choice(syllabus)
 subject = selected_topic["subject"]
 chapter = selected_topic["chapter"]
 
-print(f"आजचा ऑटो-सिलेक्टेड विषय: {subject} - {chapter}")
+# प्रश्नांमध्ये व्हरायटी आणण्यासाठी रँडम प्रकार निवडणे
+difficulties = ["Easy", "Medium", "Hard", "Advanced conceptual"]
+question_types = ["Assertion-Reason", "Match the following", "Statement based", "Direct conceptual", "Numerical/Application based"]
+
+selected_difficulty = random.choice(difficulties)
+selected_type = random.choice(question_types)
+
+print(f"आजचा विषय: {subject} - {chapter} | प्रकार: {selected_difficulty}, {selected_type}")
 
 # ३. गुगलला चालू मॉडेल विचारणे
 list_url = f"https://generativelanguage.googleapis.com/v1beta/models?key={GEMINI_API_KEY}"
@@ -139,34 +146,44 @@ if not valid_model_name:
     print("Error: योग्य मॉडेल सापडला नाही!")
     exit()
 
-# ४. प्रश्न मागवणे (इथे ५ ऐवजी १० प्रश्न करण्याची सूचना दिली आहे)
+# ४. प्रश्न मागवणे (प्रॉम्प्टमध्ये व्हरायटी जोडली आहे)
 url = f"https://generativelanguage.googleapis.com/v1beta/{valid_model_name}:generateContent?key={GEMINI_API_KEY}"
-prompt = f"Generate 10 high-quality, conceptual multiple choice questions for NEET exam on the Subject: '{subject}' and Chapter: '{chapter}'. Return ONLY a valid JSON array of objects. Keys must be exactly: 'question', 'optionA', 'optionB', 'optionC', 'optionD', 'correctOption', 'explanation'. The 'explanation' must be highly detailed and informative explaining why the option is correct and others are wrong. Do not use markdown tags."
+prompt = f"Generate 10 UNIQUE and {selected_difficulty} level '{selected_type}' multiple choice questions for NEET exam on the Subject: '{subject}' and Chapter: '{chapter}'. Make sure these are not the most common questions. Return ONLY a valid JSON array of objects. Keys must be exactly: 'question', 'optionA', 'optionB', 'optionC', 'optionD', 'correctOption', 'explanation'. The 'explanation' must be detailed. Do not use markdown tags."
 
 payload = {
     "contents": [{"parts": [{"text": prompt}]}],
-    "generationConfig": {"temperature": 0.3}
+    "generationConfig": {"temperature": 0.7} # Temperature वाढवले आहे, जेणेकरून AI अधिक क्रिएटिव्ह विचार करेल
 }
 headers = {"Content-Type": "application/json"}
 response = requests.post(url, json=payload, headers=headers)
 data = response.json()
 
-# ५. गुगल शीटमध्ये डेटा सेव्ह करणे
+# ५. गुगल शीटमध्ये डुप्लिकेट तपासून सेव्ह करणे
 if 'candidates' in data:
     try:
         text_response = data['candidates'][0]['content']['parts'][0]['text']
         text_response = text_response.replace('```json', '').replace('```', '').strip()
         questions = json.loads(text_response)
 
+        saved_count = 0
+        duplicate_count = 0
+
         print("गुगल शीटमध्ये डेटा सेव्ह करत आहे...")
         for q in questions:
-            q_id = f"{subject[:3].upper()}-{uuid.uuid4().hex[:6].upper()}"
+            question_text = q.get('question', '').strip()
             
+            # येथे आपण तपासत आहोत की हा प्रश्न आधीपासून शीटमध्ये आहे का
+            if question_text in existing_questions_list:
+                duplicate_count += 1
+                continue # जर असेल, तर हा प्रश्न सोडून द्या आणि पुढच्या प्रश्नावर जा
+
+            # जर प्रश्न नवीन असेल, तरच शीटमध्ये सेव्ह करा
+            q_id = f"{subject[:3].upper()}-{uuid.uuid4().hex[:6].upper()}"
             row = [
                 q_id,
                 subject,
                 chapter,
-                q.get('question', ''),
+                question_text,
                 q.get('optionA', ''),
                 q.get('optionB', ''),
                 q.get('optionC', ''),
@@ -175,7 +192,9 @@ if 'candidates' in data:
                 q.get('explanation', '')
             ]
             sheet.append_row(row)
-        print(f"यशस्वी! {subject} - {chapter} चे {len(questions)} नवीन प्रश्न जोडले गेले.")
+            saved_count += 1
+            
+        print(f"यशस्वी! {saved_count} नवीन प्रश्न जोडले गेले. ({duplicate_count} डुप्लिकेट प्रश्न वगळले).")
     except Exception as e:
         print(f"Error parsing JSON: {e}")
 else:
