@@ -15,8 +15,8 @@ creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
 client = gspread.authorize(creds)
 sheet = client.open_by_key(SHEET_ID).sheet1
 
-# URL मधील मॉडेलचे नाव अपडेट केले आहे (gemini-1.5-flash-latest)
-url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent"
+# मुख्य मॉडेल (नवीन v1 API)
+url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
 prompt = "Generate 5 multiple choice questions for NEET exam on the topic 'Physics: Thermodynamics'. Return ONLY a valid JSON array of objects. Keys: question, optionA, optionB, optionC, optionD, correctOption, explanation. Do not use markdown tags."
 
 payload = {
@@ -24,18 +24,21 @@ payload = {
     "generationConfig": {"temperature": 0.2}
 }
 
-headers = {
-    "Content-Type": "application/json",
-    "x-goog-api-key": GEMINI_API_KEY
-}
+headers = {"Content-Type": "application/json"}
 
-print("Gemini कडून प्रश्न जनरेट करत आहे...")
+print("Gemini कडून प्रश्न जनरेट करत आहे (gemini-1.5-flash)...")
 response = requests.post(url, json=payload, headers=headers)
 data = response.json()
 
-if 'candidates' not in data:
-    print("API Error Response:", data)
-else:
+# जर पहिला मॉडेल सापडला नाही (404 Error), तर आपोआप दुसरा प्रयत्न (Fallback)
+if 'error' in data and data['error'].get('code') == 404:
+    print("पहिला मॉडेल सापडला नाही. आता 'gemini-pro' वापरून पुन्हा प्रयत्न करत आहे...")
+    url_fallback = f"https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key={GEMINI_API_KEY}"
+    response = requests.post(url_fallback, json=payload, headers=headers)
+    data = response.json()
+
+# आलेले प्रश्न शीटमध्ये टाकणे
+if 'candidates' in data:
     try:
         text_response = data['candidates'][0]['content']['parts'][0]['text']
         text_response = text_response.replace('```json', '').replace('```', '').strip()
@@ -51,4 +54,6 @@ else:
             sheet.append_row(row)
         print(f"यशस्वी! गुगल शीटमध्ये {len(questions)} नवीन प्रश्न जोडले गेले आहेत.")
     except Exception as e:
-        print(f"Error while parsing or saving: {e}")
+        print(f"Error parsing JSON: {e}")
+else:
+    print("अंतिम API Error:", data)
