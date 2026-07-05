@@ -9,6 +9,8 @@
         body { background-color: #f8f9fa; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         .card { border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); border: none; margin-bottom: 20px;}
         .loader { display: none; text-align: center; margin: 20px; font-weight: bold; color: #dc3545; }
+        /* सुरुवातीला डॅशबोर्ड लपवून ठेवण्यासाठी */
+        #adminDashboard { display: none; }
     </style>
 </head>
 <body>
@@ -16,59 +18,73 @@
 <nav class="navbar navbar-dark bg-dark mb-4">
     <div class="container">
         <a class="navbar-brand fw-bold" href="#">⚙️ Admin Control Panel</a>
+        <button id="logoutBtn" class="btn btn-sm btn-danger" style="display: none;" onclick="logout()">Logout</button>
     </div>
 </nav>
 
 <div class="container">
     <div id="loader" class="loader">प्रोसेस करत आहे... कृपया थांबा ⏳</div>
 
-    <div class="row">
-        <div class="col-md-6">
-            <div class="card p-4">
-                <h4 class="mb-4 text-primary">📝 नवीन परीक्षा जनरेट करा</h4>
-                
-                <label>परीक्षेचे नाव (उदा. Sunday Mega Test):</label>
-                <input type="text" id="exTitle" class="form-control mb-3" placeholder="परीक्षेचे नाव">
-                
-                <label>विषय निवडा:</label>
-                <select id="exSubject" class="form-select mb-3">
-                    <option value="All">All Subjects (संपूर्ण अभ्यासक्रम)</option>
-                    <option value="Physics">Physics</option>
-                    <option value="Chemistry">Chemistry</option>
-                    <option value="Botany">Botany</option>
-                    <option value="Zoology">Zoology</option>
-                </select>
-                
-                <label>चाप्टरचे नाव (किंवा All):</label>
-                <input type="text" id="exChapter" class="form-control mb-3" value="All">
-                
-                <label>प्रश्नांची संख्या (उदा. 30, 50, 100):</label>
-                <input type="number" id="exLimit" class="form-control mb-4" value="30">
-                
-                <button class="btn btn-primary w-100 fw-bold" onclick="createExam()">🚀 परीक्षा लाईव्ह करा</button>
+    <div id="loginScreen" class="row justify-content-center mt-5">
+        <div class="col-md-4">
+            <div class="card p-4 text-center">
+                <h4 class="mb-4 text-danger fw-bold">🔒 Admin Login</h4>
+                <input type="text" id="adminUser" class="form-control mb-3" placeholder="Username (उदा. admin)">
+                <input type="password" id="adminPass" class="form-control mb-4" placeholder="Password">
+                <button class="btn btn-dark w-100 fw-bold" onclick="adminLogin()">लॉगिन करा</button>
             </div>
         </div>
+    </div>
 
-        <div class="col-md-6">
-            <div class="card p-4">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h4 class="text-success m-0">👤 नवीन विद्यार्थी रिक्वेस्ट</h4>
-                    <button class="btn btn-sm btn-outline-secondary" onclick="loadPendingStudents()">🔄 Refresh</button>
+    <div id="adminDashboard">
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card p-4">
+                    <h4 class="mb-4 text-primary">📝 नवीन परीक्षा जनरेट करा</h4>
+                    
+                    <label>परीक्षेचे नाव (उदा. Sunday Mega Test):</label>
+                    <input type="text" id="exTitle" class="form-control mb-3" placeholder="परीक्षेचे नाव">
+                    
+                    <label>विषय निवडा:</label>
+                    <select id="exSubject" class="form-select mb-3">
+                        <option value="All">All Subjects (संपूर्ण अभ्यासक्रम)</option>
+                        <option value="Physics">Physics</option>
+                        <option value="Chemistry">Chemistry</option>
+                        <option value="Botany">Botany</option>
+                        <option value="Zoology">Zoology</option>
+                    </select>
+                    
+                    <label>चाप्टरचे नाव (किंवा All):</label>
+                    <input type="text" id="exChapter" class="form-control mb-3" value="All">
+                    
+                    <label>प्रश्नांची संख्या (उदा. 30, 50, 100):</label>
+                    <input type="number" id="exLimit" class="form-control mb-4" value="30">
+                    
+                    <button class="btn btn-primary w-100 fw-bold" onclick="createExam()">🚀 परीक्षा लाईव्ह करा</button>
                 </div>
-                
-                <div class="table-responsive">
-                    <table class="table table-striped align-middle">
-                        <thead class="table-dark">
-                            <tr>
-                                <th>नाव</th>
-                                <th>मोबाईल</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody id="pendingList">
-                            <tr><td colspan="3" class="text-center">सध्या कोणतीही रिक्वेस्ट नाही.</td></tr>
-                        </tbody>
-                    </table>
+            </div>
+
+            <div class="col-md-6">
+                <div class="card p-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h4 class="text-success m-0">👤 नवीन विद्यार्थी रिक्वेस्ट</h4>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="loadPendingStudents()">🔄 Refresh</button>
+                    </div>
+                    
+                    <div class="table-responsive">
+                        <table class="table table-striped align-middle">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>नाव</th>
+                                    <th>मोबाईल</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="pendingList">
+                                <tr><td colspan="3" class="text-center">सध्या कोणतीही रिक्वेस्ट नाही.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
@@ -77,9 +93,8 @@
 
 <script>
     // 🔴 इथे तुमची नवीन WEB APP URL (API Link) टाका
-    const API_URL = 'https://script.google.com/macros/s/AKfycbwArTpmqO0zy9xF4ypuBDD-9I57koEPfcNxtIAb_OSxeKrHWAYo4yNKMT73KYtG7k9wFg/exec';
+    const API_URL = 'https://script.google.com/macros/s/AKfycbyhhWr0KvLBmWO6f4wXAC0lb1Hd1XlEoy9XtUxJFzFy_ANYD1i832vwPYcNdwuHthq-2g/exec';
 
-    // API ला डेटा पाठवणारे फंक्शन
     async function callAPI(payload) {
         document.getElementById('loader').style.display = 'block';
         try {
@@ -96,7 +111,34 @@
         }
     }
 
-    // १. परीक्षा बनवणे
+    // ॲडमिन लॉगिन फंक्शन
+    async function adminLogin() {
+        const username = document.getElementById('adminUser').value;
+        const password = document.getElementById('adminPass').value;
+
+        if(!username || !password) return alert("कृपया युझरनेम आणि पासवर्ड टाका!");
+
+        const res = await callAPI({ action: "adminLogin", username, password });
+        if(res && res.status === "success") {
+            // लॉगिन यशस्वी झाल्यावर स्क्रीन बदलणे
+            document.getElementById('loginScreen').style.display = 'none';
+            document.getElementById('adminDashboard').style.display = 'block';
+            document.getElementById('logoutBtn').style.display = 'block';
+            loadPendingStudents(); // डॅशबोर्ड दिसल्यावर लगेच विद्यार्थ्यांची यादी लोड करणे
+        } else {
+            alert(res.message);
+        }
+    }
+
+    // लॉगआउट फंक्शन
+    function logout() {
+        document.getElementById('loginScreen').style.display = 'flex';
+        document.getElementById('adminDashboard').style.display = 'none';
+        document.getElementById('logoutBtn').style.display = 'none';
+        document.getElementById('adminUser').value = '';
+        document.getElementById('adminPass').value = '';
+    }
+
     async function createExam() {
         const title = document.getElementById('exTitle').value;
         const subject = document.getElementById('exSubject').value;
@@ -108,13 +150,12 @@
         const res = await callAPI({ action: "createExam", title, subject, chapter, limit: parseInt(limit) });
         if(res && res.status === "success") {
             alert(res.message);
-            document.getElementById('exTitle').value = ""; // बॉक्स रिकामा करणे
+            document.getElementById('exTitle').value = ""; 
         } else {
             alert("परीक्षा तयार करण्यात अडचण आली.");
         }
     }
 
-    // २. पेंडिंग विद्यार्थी लोड करणे
     async function loadPendingStudents() {
         const res = await callAPI({ action: "getPendingStudents" });
         const list = document.getElementById('pendingList');
@@ -135,19 +176,15 @@
         }
     }
 
-    // ३. विद्यार्थ्याला ॲक्टिव्ह करणे
     async function activateStudent(studentId) {
         if(!confirm("या विद्यार्थ्याला ॲक्टिव्ह करायचे आहे का?")) return;
         
         const res = await callAPI({ action: "activateStudent", studentId });
         if(res && res.status === "success") {
             alert(res.message);
-            loadPendingStudents(); // यादी पुन्हा रिफ्रेश करणे
+            loadPendingStudents(); 
         }
     }
-
-    // पेज लोड झाल्यावर एकदा पेंडिंग लिस्ट चेक करणे
-    window.onload = loadPendingStudents;
 </script>
 </body>
 </html>
