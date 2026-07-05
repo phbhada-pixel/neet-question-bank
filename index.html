@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NEET Question Bank Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <style>
+        body { background-color: #f4f7f6; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .card { border: none; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        .bg-primary-custom { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+        .bg-success-custom { background: linear-gradient(135deg, #2af598 0%, #009efd 100%); color: white; }
+    </style>
+</head>
+<body>
+
+<div class="container mt-5">
+    <h2 class="text-center mb-4 fw-bold" style="color: #333;">🚀 NEET AI Question Bank - Live Dashboard</h2>
+    
+    <div class="row mb-4 text-center">
+        <div class="col-md-6 mb-3">
+            <div class="card bg-primary-custom p-4">
+                <h5>एकूण तयार झालेले प्रश्न</h5>
+                <h1 class="display-4 fw-bold" id="totalQuestions">Loading...</h1>
+            </div>
+        </div>
+        <div class="col-md-6 mb-3">
+            <div class="card bg-success-custom p-4">
+                <h5>लास्ट अपडेट टाईम (IST)</h5>
+                <h2 class="mt-2 fw-bold" id="lastUpdated" style="font-size: 2rem;">Loading...</h2>
+            </div>
+        </div>
+    </div>
+
+    <div class="card p-4">
+        <h4 class="mb-3 border-bottom pb-2">विषयवार (Subject-wise) अहवाल</h4>
+        <div class="table-responsive">
+            <table class="table table-hover table-striped" id="statsTable">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Subject (विषय)</th>
+                        <th>Chapter (चाप्टर)</th>
+                        <th>Total Questions (एकूण प्रश्न)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 🔴 महत्त्वाची सूचना: खालील '...' च्या जागी तुम्ही मगाशी कॉपी केलेली Google Sheet ची CSV लिंक टाका! 
+    const csvUrl = 'इथे_तुमची_CSV_लिंक_पेस्ट_करा';
+
+    Papa.parse(csvUrl, {
+        download: true,
+        header: false,
+        complete: function(results) {
+            const data = results.data;
+            let total = 0;
+            let lastUpdate = '';
+            let counts = {};
+
+            // पहिल्या ओळीत Headers असतील तर ती ओळ वगळण्यासाठी
+            let startIndex = (data.length > 0 && data[0][1] === 'Subject') ? 1 : 0;
+
+            for (let i = startIndex; i < data.length; i++) {
+                let row = data[i];
+                // कॉलम A (Question ID) आणि कॉलम K (Timestamp) अस्तित्वात असल्याची खात्री करा
+                if (row.length >= 11 && row[0]) { 
+                    total++;
+                    let subject = row[1];
+                    let chapter = row[2];
+                    let timestamp = row[10];
+
+                    // सर्वात नवीन वेळ शोधणे
+                    if (timestamp > lastUpdate) {
+                        lastUpdate = timestamp;
+                    }
+
+                    // विषय आणि चाप्टरनुसार प्रश्नांची मोजणी
+                    let key = subject + " | " + chapter;
+                    if (!counts[key]) {
+                        counts[key] = { subject: subject, chapter: chapter, count: 0 };
+                    }
+                    counts[key].count++;
+                }
+            }
+
+            // डॅशबोर्डवर आकडे दाखवणे
+            document.getElementById('totalQuestions').innerText = total;
+            document.getElementById('lastUpdated').innerText = lastUpdate || 'माहिती नाही';
+
+            // टेबलमध्ये माहिती भरणे
+            const tbody = document.querySelector('#statsTable tbody');
+            tbody.innerHTML = '';
+            
+            // विषयानुसार यादी सॉर्ट करणे
+            let sortedKeys = Object.keys(counts).sort();
+
+            sortedKeys.forEach(key => {
+                let item = counts[key];
+                let tr = document.createElement('tr');
+                tr.innerHTML = `<td><strong>${item.subject}</strong></td><td>${item.chapter}</td><td class="fs-5 fw-bold text-primary">${item.count}</td>`;
+                tbody.appendChild(tr);
+            });
+        }
+    });
+</script>
+
+</body>
+</html>
