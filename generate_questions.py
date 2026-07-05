@@ -24,70 +24,106 @@ try:
 except:
     existing_questions_list = []
 
-# २. NEET 2025 चा सविस्तर सिलॅबस (PDF नुसार सविस्तर Topics सह)
+# २. NEET चा संपूर्ण सिलॅबस (११वी आणि १२वी सर्व चाप्टर्स + PDF नुसार सविस्तर Topics)
 syllabus = [
     # --- PHYSICS ---
     {"subject": "Physics", "chapter": "Physics and Measurement", "topics": "Units of measurements, System of Units, SI Units, fundamental and derived units, least count, significant figures, Errors in measurements, Dimensions of Physics quantities, dimensional analysis."},
     {"subject": "Physics", "chapter": "Kinematics", "topics": "Frame of reference, motion in a straight line, Position-time graph, speed, velocity, Uniform and non-uniform motion, average speed, instantaneous velocity, uniformly accelerated motion, Scalars and Vectors, Relative Velocity, Motion in a plane, Projectile Motion, Uniform Circular Motion."},
-    {"subject": "Physics", "chapter": "Laws of Motion", "topics": "Force, inertia, Newton's laws of motion, Momentum, Impulses, Law of conservation of linear momentum. Static and Kinetic friction, rolling friction. Dynamics of uniform circular motion, centripetal force."},
-    {"subject": "Physics", "chapter": "Work, Energy, and Power", "topics": "Work done by a constant/variable force; kinetic and potential energies, work-energy theorem, power. Potential energy of spring, conservative/non-conservative forces, elastic and inelastic collisions."},
-    {"subject": "Physics", "chapter": "Rotational Motion", "topics": "Centre of mass, moment of a force, torque, angular momentum, conservation of angular momentum. Moment of inertia, radius of gyration, parallel and perpendicular axes theorems, equilibrium of rigid bodies."},
-    {"subject": "Physics", "chapter": "Gravitation", "topics": "Universal law of gravitation. Acceleration due to gravity, Kepler's law, Gravitational potential energy, Escape velocity, orbital velocity of satellite."},
-    {"subject": "Physics", "chapter": "Properties of Solids and Liquids", "topics": "Elastic behaviour, Stress-strain, Hooke's Law, Young's modulus. Pressure due to fluid, Pascal's law, Viscosity, Stokes' law, terminal velocity, Bernoulli's principle. Surface tension, Heat transfer (conduction, convection, radiation)."},
-    {"subject": "Physics", "chapter": "Thermodynamics", "topics": "Thermal equilibrium, zeroth, first and second law of thermodynamics. Isothermal and adiabatic processes, reversible and irreversible processes."},
+    {"subject": "Physics", "chapter": "Laws of Motion", "topics": "Force and inertia, Newton's First, Second and Third Law of motion, Momentum, Impulses, Law of conservation of linear momentum, Equilibrium of concurrent forces, Static and Kinetic friction, rolling friction, Dynamics of uniform circular motion."},
+    {"subject": "Physics", "chapter": "Work, Energy and Power", "topics": "Work done by a constant/variable force, kinetic and potential energies, work-energy theorem, power, Potential energy of spring, conservative and non-conservative forces, Elastic and inelastic collisions."},
+    {"subject": "Physics", "chapter": "System of Particles and Rotational Motion", "topics": "Centre of mass, moment of a force, torque, angular momentum, conservation of angular momentum, Moment of inertia, radius of gyration, parallel and perpendicular axes theorems, Equilibrium of rigid bodies."},
+    {"subject": "Physics", "chapter": "Gravitation", "topics": "Universal law of gravitation, Acceleration due to gravity, Kepler's law, Gravitational potential energy, Escape velocity, Motion of a satellite, orbital velocity, time period and energy of satellite."},
+    {"subject": "Physics", "chapter": "Properties of Solids and Liquids", "topics": "Elastic behaviour, Stress-strain relationship, Hooke's Law, Young's modulus, Pascal's law, Viscosity, Stokes' law, terminal velocity, Bernoulli's principle, Surface energy and tension, Heat transfer (conduction, convection, radiation)."},
+    {"subject": "Physics", "chapter": "Thermodynamics", "topics": "Thermal equilibrium, zeroth, first and second law of thermodynamics, Heat, work, internal energy, isothermal and adiabatic processes, reversible and irreversible processes."},
     {"subject": "Physics", "chapter": "Kinetic Theory of Gases", "topics": "Equation of state of a perfect gas, work done on compressing a gas, Kinetic interpretation of temperature, RMS speed, Degrees of freedom, Law of equipartition of energy, Mean free path."},
-    {"subject": "Physics", "chapter": "Oscillations and Waves", "topics": "Periodic motion, SHM and its equation, phase, restoring force, Simple pendulum. Wave motion, Longitudinal/transverse waves, Principle of superposition, Standing waves, Beats."},
-    {"subject": "Physics", "chapter": "Electrostatics", "topics": "Electric charges, Coulomb's law, Electric field, Electric dipole, Gauss's law and applications, Electric potential, Equipotential surfaces, Conductors, insulators, Dielectrics, capacitors, energy stored."},
-    {"subject": "Physics", "chapter": "Current Electricity", "topics": "Electric current, Drift velocity, Ohm's law, V-I characteristics, Electrical resistance, resistivity, combinations of resistors. Kirchhoff's laws, Wheatstone bridge, Metre Bridge."},
-    {"subject": "Physics", "chapter": "Magnetic Effects of Current and Magnetism", "topics": "Biot Savart law, Ampere's law, Force on a moving charge, Force on a current-carrying conductor, Moving coil galvanometer, Magnetic dipole, Para-, dia- and ferromagnetic substances."},
-    {"subject": "Physics", "chapter": "Electromagnetic Induction and AC", "topics": "Faraday's law, Lenz's Law, Eddy currents, Self and mutual inductance. Alternating currents, LCR series circuit, resonance, AC generator, transformer."},
-    {"subject": "Physics", "chapter": "Electromagnetic Waves", "topics": "Displacement current, Electromagnetic spectrum (radio, micro, IR, visible, UV, X-rays, Gamma rays), Transverse nature."},
-    {"subject": "Physics", "chapter": "Optics", "topics": "Reflection, refraction, spherical mirrors, lenses, Total internal reflection, Prism, Microscope, Telescope. Wave optics: Huygens' principle, Interference, Young's double-slit, Diffraction, Polarization."},
-    {"subject": "Physics", "chapter": "Dual Nature of Matter and Radiation", "topics": "Photoelectric effect, Einstein's photoelectric equation, Matter waves, de Broglie relation."},
-    {"subject": "Physics", "chapter": "Atoms and Nuclei", "topics": "Alpha-particle scattering, Rutherford's model, Bohr model, hydrogen spectrum. Nucleus composition, mass defect, binding energy, nuclear fission, fusion."},
-    {"subject": "Physics", "chapter": "Electronic Devices", "topics": "Semiconductors, p-n junction diode, forward and reverse bias, LED, photodiode, solar cell, Zener diode, Logic gates (OR, AND, NOT, NAND, NOR)."},
-    {"subject": "Physics", "chapter": "Experimental Skills", "topics": "Vernier calipers, Screw gauge, Simple Pendulum, Metre Scale, Young's modulus, Surface tension, Viscosity, Speed of sound, Specific heat capacity, Resistivity, Ohm's law, Galvanometer, Focal length of mirrors/lenses, Prism, Diode characteristics."},
+    {"subject": "Physics", "chapter": "Oscillations", "topics": "Periodic motion, time period, frequency, Simple harmonic motion (S.H.M.) and its equation, phase, restoring force, Simple pendulum."},
+    {"subject": "Physics", "chapter": "Waves", "topics": "Wave motion, Longitudinal and transverse waves, speed of travelling wave, Principle of superposition of waves, Standing waves in strings and organ pipes, fundamental mode and harmonics, Beats."},
+    {"subject": "Physics", "chapter": "Electrostatics", "topics": "Electric charges, Coulomb's law, Electric field, Electric dipole, Electric flux, Gauss's law, Electric potential, Equipotential surfaces, Conductors and insulators, Dielectrics and polarization, capacitors and capacitances, energy stored."},
+    {"subject": "Physics", "chapter": "Current Electricity", "topics": "Electric current, Drift velocity, mobility, Ohm's law, Electrical resistance, V-I characteristics, Electrical energy and power, Series and parallel combinations of resistors, Kirchhoff's laws, Wheatstone bridge, Metre Bridge."},
+    {"subject": "Physics", "chapter": "Magnetic Effects of Current and Magnetism", "topics": "Biot Savart law, Ampere's law, Force on a moving charge, Force on a current-carrying conductor, Torque experienced by a current loop, Moving coil galvanometer, Magnetic dipole, Para-, dia- and ferromagnetic substances."},
+    {"subject": "Physics", "chapter": "Electromagnetic Induction and Alternating Currents", "topics": "Faraday's law, Induced emf, Lenz's Law, Eddy currents, Self and mutual inductance, Alternating currents, LCR series circuit, resonance, power in AC circuits, AC generator and transformer."},
+    {"subject": "Physics", "chapter": "Electromagnetic Waves", "topics": "Displacement current, Electromagnetic waves characteristics, Transverse nature, Electromagnetic spectrum (radio waves, microwaves, IR, visible, UV, X-rays, Gamma rays)."},
+    {"subject": "Physics", "chapter": "Optics (Ray Optics and Wave Optics)", "topics": "Reflection, refraction, spherical mirrors, lenses, Total internal reflection, Prism, Microscope and Telescope, Wave optics, Huygens' principle, Interference, Young's double-slit, Diffraction, Polarization."},
+    {"subject": "Physics", "chapter": "Dual Nature of Matter and Radiation", "topics": "Dual nature of radiation, Photoelectric effect, Einstein's photoelectric equation, Matter waves, de Broglie relation."},
+    {"subject": "Physics", "chapter": "Atoms and Nuclei", "topics": "Alpha-particle scattering experiment, Rutherford's model, Bohr model, hydrogen spectrum, Composition of nucleus, mass defect, binding energy per nucleon, nuclear fission, and fusion."},
+    {"subject": "Physics", "chapter": "Electronic Devices (Semiconductor Electronics)", "topics": "Semiconductors, p-n junction diode in forward and reverse bias, LED, photodiode, solar cell, Zener diode, Logic gates (OR, AND, NOT, NAND, NOR)."},
+    {"subject": "Physics", "chapter": "Experimental Skills", "topics": "Vernier calipers, Screw gauge, Simple Pendulum, Metre Scale, Young's modulus, Surface tension, Viscosity, Speed of sound, Specific heat capacity, Resistivity, Ohm's law, Focal length of mirrors/lenses."},
 
     # --- CHEMISTRY ---
-    {"subject": "Chemistry", "chapter": "Some Basic Concepts in Chemistry", "topics": "Dalton's atomic theory, Atomic/molecular masses, mole concept, molar mass, empirical/molecular formulae, stoichiometry."},
-    {"subject": "Chemistry", "chapter": "Atomic Structure", "topics": "Bohr model, dual nature of matter, de Broglie, Heisenberg uncertainty, Quantum mechanics, quantum numbers, shapes of orbitals, Aufbau, Pauli's, Hund's rule."},
-    {"subject": "Chemistry", "chapter": "Chemical Bonding and Molecular Structure", "topics": "Ionic and covalent bonds, VSEPR theory, Valence bond theory, hybridization (s, p, d), Resonance, Molecular Orbital Theory, Hydrogen bonding."},
-    {"subject": "Chemistry", "chapter": "Chemical Thermodynamics", "topics": "System, surroundings, first law, enthalpy, Hess's law, heat of reaction. Second law, Spontaneity, Entropy, Gibbs energy change."},
-    {"subject": "Chemistry", "chapter": "Solutions", "topics": "Concentration of solution (molality, molarity, mole fraction), Raoult's Law, Ideal/non-ideal solutions, Colligative properties (lowering of VP, depression of FP, elevation of BP, osmotic pressure), van't Hoff factor."},
-    {"subject": "Chemistry", "chapter": "Equilibrium", "topics": "Physical/chemical equilibrium, Le Chatelier's principle, Ionic equilibrium, pH scale, common ion effect, hydrolysis of salts, solubility products, buffer solutions."},
-    {"subject": "Chemistry", "chapter": "Redox Reactions and Electrochemistry", "topics": "Oxidation number, balancing redox reactions. Electrolytic conduction, Kohlrausch's law, Galvanic cells, Nernst equation, Fuel cells."},
-    {"subject": "Chemistry", "chapter": "Chemical Kinetics", "topics": "Rate of reaction, factors affecting rate, order and molecularity, zero/first-order reactions, half-life, Arrhenius theory, activation energy."},
-    {"subject": "Chemistry", "chapter": "Classification of Elements", "topics": "Modern periodic law, s, p, d, f blocks, periodic trends (atomic radii, ionization enthalpy, electron gain enthalpy, electronegativity)."},
-    {"subject": "Chemistry", "chapter": "p-Block Elements", "topics": "Group 13 to 18 Elements: Electronic configuration, general trends in physical/chemical properties, unique behaviour of first element."},
-    {"subject": "Chemistry", "chapter": "d and f-Block Elements", "topics": "Transition Elements: properties, colour, catalytic behaviour, magnetic properties, alloys. K2Cr2O7, KMnO4. Lanthanoids and Actinoids."},
-    {"subject": "Chemistry", "chapter": "Co-ordination Compounds", "topics": "Werner's theory, ligands, IUPAC nomenclature, isomerism, Valence bond and Crystal field theory, importance in biology/analysis."},
-    {"subject": "Chemistry", "chapter": "Purification and Characterisation of Organic Compounds", "topics": "Crystallization, distillation, extraction, chromatography. Qualitative analysis (N, S, P, halogens). Quantitative analysis (empirical/molecular formulae)."},
-    {"subject": "Chemistry", "chapter": "Some Basic Principles of Organic Chemistry", "topics": "Tetravalency of carbon, functional groups, Isomerism. IUPAC Nomenclature. Homolytic/heterolytic fission, electrophiles, nucleophiles. Inductive/electromeric effect, resonance, hyperconjugation."},
-    {"subject": "Chemistry", "chapter": "Hydrocarbons", "topics": "Alkanes, Alkenes, Alkynes (Nomenclature, isomerism, preparation, Markownikoff's rule, Ozonolysis). Aromatic hydrocarbons (Benzene, electrophilic substitution)."},
-    {"subject": "Chemistry", "chapter": "Organic Compounds Containing Halogens", "topics": "Preparation, properties, Nature of C-X bond, mechanisms of substitution reactions. Uses and environmental effects of freons, DDT."},
-    {"subject": "Chemistry", "chapter": "Organic Compounds Containing Oxygen", "topics": "Alcohols, Phenols, Ethers: Preparation, acidic nature, substitution. Aldehydes and Ketones: Nucleophilic addition, oxidation/reduction, aldol condensation, Cannizzaro. Carboxylic Acids."},
-    {"subject": "Chemistry", "chapter": "Organic Compounds Containing Nitrogen", "topics": "Amines: Nomenclature, classification, basic character. Diazonium Salts: Importance in synthesis."},
-    {"subject": "Chemistry", "chapter": "Biomolecules", "topics": "Carbohydrates (monosaccharides, oligosaccharides). Proteins (amino acids, peptide bond, structures, denaturation, enzymes). Vitamins, Nucleic Acids (DNA, RNA)."},
-    {"subject": "Chemistry", "chapter": "Principles Related to Practical Chemistry", "topics": "Detection of functional groups, preparation of inorganic/organic compounds, titrimetric exercises, qualitative salt analysis, Enthalpy of solution/neutralization."},
+    {"subject": "Chemistry", "chapter": "Some Basic Concepts of Chemistry", "topics": "Dalton's atomic theory, Atomic and molecular masses, mole concept, molar mass, empirical and molecular formulae, Chemical equations and stoichiometry."},
+    {"subject": "Chemistry", "chapter": "Structure of Atom", "topics": "Bohr model, Dual nature of matter, de Broglie's relationship, Heisenberg uncertainty principle, Quantum mechanics, quantum numbers, shapes of s, p, and d orbitals, Aufbau principle, Pauli's exclusion principle and Hund's rule."},
+    {"subject": "Chemistry", "chapter": "Classification of Elements and Periodicity in Properties", "topics": "Modern periodic law, s, p, d and f block elements, periodic trends in properties (atomic/ionic radii, ionization enthalpy, electron gain enthalpy, valency)."},
+    {"subject": "Chemistry", "chapter": "Chemical Bonding and Molecular Structure", "topics": "Ionic and covalent bonds, Fajan's rule, dipole moment, VSEPR theory, Valence bond theory, hybridization, Resonance, Molecular Orbital Theory, Hydrogen bonding."},
+    {"subject": "Chemistry", "chapter": "States of Matter", "topics": "Gaseous state, gas laws (Boyle's, Charles', Graham's law), ideal gas equation, kinetic molecular theory of gases, deviation from ideal behavior, liquefaction of gases."},
+    {"subject": "Chemistry", "chapter": "Thermodynamics", "topics": "System and surroundings, First law of thermodynamics, enthalpy, Hess's law, Second law of thermodynamics, Spontaneity, Standard Gibbs energy change and equilibrium constant."},
+    {"subject": "Chemistry", "chapter": "Equilibrium", "topics": "Dynamic equilibrium, Law of chemical equilibrium, equilibrium constants (Kp and Kc), Le Chatelier's principle, Ionic equilibrium, ionization of acids and bases, pH scale, common ion effect, buffer solutions."},
+    {"subject": "Chemistry", "chapter": "Redox Reactions", "topics": "Electronic concepts of oxidation and reduction, oxidation number, balancing of redox reactions."},
+    {"subject": "Chemistry", "chapter": "Hydrogen", "topics": "Position of hydrogen in periodic table, isotopes, preparation, properties and uses of hydrogen, hydrides, water, heavy water, hydrogen peroxide."},
+    {"subject": "Chemistry", "chapter": "s-Block Elements", "topics": "Group 1 and Group 2 elements, general introduction, electronic configuration, occurrence, anomalous properties of first element, important compounds."},
+    {"subject": "Chemistry", "chapter": "Some p-Block Elements", "topics": "Group 13 to Group 18 Elements, Electronic configuration, general trends in physical and chemical properties, unique behaviour of the first element in each group."},
+    {"subject": "Chemistry", "chapter": "Organic Chemistry – Some Basic Principles and Techniques", "topics": "Tetravalency of carbon, Isomerism, IUPAC nomenclature, Homolytic and heterolytic fission, electrophiles, nucleophiles, Inductive effect, electromeric effect, resonance, hyperconjugation."},
+    {"subject": "Chemistry", "chapter": "Hydrocarbons", "topics": "Alkanes (Conformations, halogenation), Alkenes (Geometrical isomerism, Markownikoff's rule, Ozonolysis), Alkynes (Acidic character, polymerization), Aromatic hydrocarbons (Benzene, electrophilic substitution)."},
+    {"subject": "Chemistry", "chapter": "Environmental Chemistry", "topics": "Environmental pollution, air, water and soil pollution, chemical reactions in atmosphere, smog, major atmospheric pollutants, acid rain, ozone depletion, green chemistry."},
+    {"subject": "Chemistry", "chapter": "Solutions", "topics": "Methods for expressing concentration (molality, molarity, mole fraction), Raoult's Law, Ideal and non-ideal solutions, Colligative properties, Determination of molecular mass, van't Hoff factor."},
+    {"subject": "Chemistry", "chapter": "Electrochemistry", "topics": "Electrolytic and metallic conduction, Kohlrausch's law, Electrochemical cells, Nernst equation, Relationship between cell potential and Gibbs energy change, Dry cell, lead accumulator, Fuel cells."},
+    {"subject": "Chemistry", "chapter": "Chemical Kinetics", "topics": "Rate of a chemical reaction, factors affecting rate, order and molecularity, differential and integral forms of zero and first-order reactions, Arrhenius theory, activation energy."},
+    {"subject": "Chemistry", "chapter": "d- and f-Block Elements", "topics": "Transition Elements, electronic configuration, characteristics, ionization enthalpy, oxidation states, colour, magnetic properties, alloys, K2Cr2O7 and KMnO4, Lanthanoids and Actinoids."},
+    {"subject": "Chemistry", "chapter": "Coordination Compounds", "topics": "Werner's theory, ligands, coordination number, IUPAC nomenclature, isomerism, Valence bond approach, Crystal field theory, Importance in qualitative analysis and biology."},
+    {"subject": "Chemistry", "chapter": "Haloalkanes and Haloarenes", "topics": "General methods of preparation, properties, Nature of C-X bond, Mechanisms of substitution reactions, Environmental effects of chloroform, iodoform freons, and DDT."},
+    {"subject": "Chemistry", "chapter": "Alcohols, Phenols and Ethers", "topics": "Alcohols: mechanism of dehydration. Phenols: Acidic nature, electrophilic substitution reactions (halogenation, nitration). Ethers: Structure and reactivity."},
+    {"subject": "Chemistry", "chapter": "Aldehydes, Ketones and Carboxylic Acids", "topics": "Nature of carbonyl group, Nucleophilic addition, Grignard reagent, oxidation, reduction, aldol condensation, Cannizzaro reaction, Carboxylic Acids (Acidic strength)."},
+    {"subject": "Chemistry", "chapter": "Amines", "topics": "Nomenclature, classification, basic character, identification of primary, secondary, and tertiary amines, Diazonium Salts and their synthetic importance."},
+    {"subject": "Chemistry", "chapter": "Biomolecules", "topics": "Carbohydrates (glucose, fructose, sucrose), Proteins (amino acids, peptide bond, primary/secondary/tertiary structures, enzymes), Vitamins, Nucleic Acids (DNA and RNA)."},
+    {"subject": "Chemistry", "chapter": "Polymers", "topics": "Classification of polymers, natural and synthetic polymers, methods of polymerization (addition and condensation), copolymerization, important polymers like polythene, nylon, polyesters, bakelite, rubber."},
+    {"subject": "Chemistry", "chapter": "Chemistry in Everyday Life", "topics": "Chemicals in medicines (analgesics, tranquilizers, antiseptics, antibiotics), chemicals in food (preservatives, artificial sweetening agents), cleansing agents (soaps and detergents)."},
 
     # --- BIOLOGY ---
-    {"subject": "Biology", "chapter": "Diversity in Living World", "topics": "Taxonomy, Binomial nomenclature, Five kingdom classification (Monera, Protista, Fungi, Plantae, Animalia), Viruses, Viroids, Lichens."},
-    {"subject": "Biology", "chapter": "Structural Organisation in Animals and Plants", "topics": "Morphology and anatomy of flowering plants (root, stem, leaf, flower, fruit). Animal tissues, morphology/anatomy of insects (Frog)."},
-    {"subject": "Biology", "chapter": "Cell Structure and Function", "topics": "Prokaryotic/eukaryotic cell, organelles (ER, Golgi, mitochondria, ribosomes, plastids, nucleus). Biomolecules (proteins, carbohydrates, lipids, enzymes). Cell cycle, mitosis, meiosis."},
-    {"subject": "Biology", "chapter": "Plant Physiology", "topics": "Photosynthesis (light/dark reactions, C3, C4, photorespiration). Respiration (glycolysis, TCA cycle, ETS). Plant growth regulators (auxin, gibberellin, cytokinin, ethylene, ABA)."},
-    {"subject": "Biology", "chapter": "Human Physiology", "topics": "Breathing/respiration, Body fluids/circulation (heart, ECG, double circulation), Excretory system (urine formation, osmoregulation), Locomotion (muscles, skeletal system), Neural control (CNS, PNS, nerve impulse), Chemical coordination (endocrine glands, hormones)."},
-    {"subject": "Biology", "chapter": "Reproduction", "topics": "Sexual reproduction in flowering plants (pollination, double fertilization, endosperm, embryo). Human Reproduction (gametogenesis, menstrual cycle, fertilization, pregnancy). Reproductive health, birth control, IVF, STDs."},
-    {"subject": "Biology", "chapter": "Genetics and Evolution", "topics": "Mendelian inheritance, co-dominance, multiple alleles, linkage, sex determination, genetic disorders. Molecular basis (DNA, RNA, replication, transcription, translation, human genome project). Evolution (origin of life, Darwin, Natural selection, Hardy-Weinberg)."},
-    {"subject": "Biology", "chapter": "Biology and Human Welfare", "topics": "Health and Disease (Malaria, Typhoid, HIV, Cancer, immunology). Microbes in human welfare (food processing, industrial production, sewage treatment, biogas)."},
-    {"subject": "Biology", "chapter": "Biotechnology and Its Applications", "topics": "Genetic engineering (Recombinant DNA technology). Application in health and agriculture (insulin, gene therapy, Bt crops, transgenic animals)."},
-    {"subject": "Biology", "chapter": "Ecology and Environment", "topics": "Population interactions, Ecosystem (energy flow, pyramids), Biodiversity and conservation (hotspots, national parks, sanctuaries)."}
+    {"subject": "Biology", "chapter": "The Living World", "topics": "What is living?, Biodiversity, Taxonomy & Systematics, Concept of species, taxonomical hierarchy, Binomial nomenclature."},
+    {"subject": "Biology", "chapter": "Biological Classification", "topics": "Five kingdom classification, salient features and classification of Monera, Protista and Fungi, Lichens, Viruses and Viroids."},
+    {"subject": "Biology", "chapter": "Plant Kingdom", "topics": "Classification of plants into major groups: Algae, Bryophytes, Pteridophytes, Gymnosperms (salient and distinguishing features)."},
+    {"subject": "Biology", "chapter": "Animal Kingdom", "topics": "Salient features and classification of animals: non-chordate up to phyla level and chordate up to classes level."},
+    {"subject": "Biology", "chapter": "Morphology of Flowering Plants", "topics": "Morphology and modifications, Tissues, Anatomy and functions of root, stem, leaf, inflorescence, flower, fruit and seed. Families (malvaceae, Cruciferae, leguminoceae, etc)."},
+    {"subject": "Biology", "chapter": "Anatomy of Flowering Plants", "topics": "Anatomy and functions of different parts of flowering plants, plant tissues, dicot and monocot stem, root and leaves, secondary growth."},
+    {"subject": "Biology", "chapter": "Structural Organisation in Animals", "topics": "Animal tissues, Morphology, anatomy and functions of different systems (digestive, circulatory, respiratory, nervous and reproductive) of an insect (Frog)."},
+    {"subject": "Biology", "chapter": "Cell: The Unit of Life", "topics": "Cell theory, Prokaryotic and eukaryotic cell, Cell envelope, cell membrane, cell organelles (Endoplasmic reticulum, Golgi bodies, lysosomes, mitochondria, ribosomes, plastids), Nucleus."},
+    {"subject": "Biology", "chapter": "Biomolecules", "topics": "Chemical constituents of living cells, structure and function of proteins, carbohydrates, lipids, nucleic acids, Enzymes (properties, action, classification)."},
+    {"subject": "Biology", "chapter": "Cell Cycle and Cell Division", "topics": "Cell cycle, mitosis, meiosis and their significance in cell division."},
+    {"subject": "Biology", "chapter": "Transport in Plants", "topics": "Movement of water, gases and nutrients, cell to cell transport, Diffusion, active transport, plant-water relations, Imbibition, water potential, osmosis, plasmolysis, transpiration."},
+    {"subject": "Biology", "chapter": "Mineral Nutrition", "topics": "Essential minerals, macro and micronutrients and their role, deficiency symptoms, mineral toxicity, elementary idea of hydroponics, nitrogen metabolism, nitrogen cycle."},
+    {"subject": "Biology", "chapter": "Photosynthesis in Higher Plants", "topics": "Site of photosynthesis, pigments involved, Photochemical and biosynthetic phases, Cyclic and non cyclic photophosphorylation, Chemiosmotic hypothesis, Photorespiration, C3 and C4 pathways, Factors affecting photosynthesis."},
+    {"subject": "Biology", "chapter": "Respiration in Plants", "topics": "Cellular respiration, glycolysis, fermentation (anaerobic), TCA cycle and electron transport system (aerobic), Energy relations (ATP generation), Amphibolic pathways, Respiratory quotient."},
+    {"subject": "Biology", "chapter": "Plant Growth and Development", "topics": "Seed germination, Phases of Plant growth, Differentiation, dedifferentiation and redifferentiation, Growth regulators (auxin, gibberellin, cytokinin, ethylene, ABA)."},
+    {"subject": "Biology", "chapter": "Digestion and Absorption", "topics": "Alimentary canal and digestive glands, Role of digestive enzymes and gastrointestinal hormones, Peristalsis, digestion, absorption and assimilation of proteins, carbohydrates and fats."},
+    {"subject": "Biology", "chapter": "Breathing and Exchange of Gases", "topics": "Respiratory system in humans, Mechanism of breathing and its regulation, Exchange of gases, transport of gases, Respiratory volumes, Disorders (Asthma, Emphysema, Occupational respiratory disorders)."},
+    {"subject": "Biology", "chapter": "Body Fluids and Circulation", "topics": "Composition of blood, blood groups, coagulation, Composition of lymph, Human circulatory system, Cardiac cycle, ECG, Double circulation, Regulation of cardiac activity, Disorders (Hypertension, CAD, Heart failure)."},
+    {"subject": "Biology", "chapter": "Excretory Products and Their Elimination", "topics": "Modes of excretion, Human excretory system (urine formation, Osmoregulation), Regulation of kidney function (Renin-angiotensin, ADH), Disorders (Uraemia, Renal failure, Renal calculi, Dialysis)."},
+    {"subject": "Biology", "chapter": "Locomotion and Movement", "topics": "Types of movement (ciliary, flagellar, muscular), Skeletal muscle, contractile proteins and muscle contraction, Skeletal system, Joints, Disorders (Myasthenia gravis, Tetany, Muscular dystrophy, Arthritis, Osteoporosis, Gout)."},
+    {"subject": "Biology", "chapter": "Neural Control and Coordination", "topics": "Neuron and nerves, Nervous system in humans (CNS, PNS, visceral), Generation and conduction of nerve impulse."},
+    {"subject": "Biology", "chapter": "Chemical Coordination and Integration", "topics": "Endocrine glands and hormones, Human endocrine system (Hypothalamus, Pituitary, Thyroid, Parathyroid, Adrenal, Pancreas, Gonads), Mechanism of hormone action, Disorders (Dwarfism, Acromegaly, Cretinism, goiter, diabetes)."},
+    {"subject": "Biology", "chapter": "Reproduction in Organisms", "topics": "Reproduction, a characteristic feature of all organisms for continuation of species, modes of reproduction (asexual and sexual), asexual reproduction (binary fission, sporulation, budding, gemmule formation, fragmentation), vegetative propagation in plants."},
+    {"subject": "Biology", "chapter": "Sexual Reproduction in Flowering Plants", "topics": "Flower structure, Development of male and female gametophytes, Pollination, Outbreeding devices, Pollen-Pistil interaction, Double fertilization, Post fertilization events (endosperm, embryo, seed, fruit), apomixis, parthenocarpy, polyembryony."},
+    {"subject": "Biology", "chapter": "Human Reproduction", "topics": "Male and female reproductive systems, Microscopic anatomy of testis and ovary, Gametogenesis (spermatogenesis & oogenesis), Menstrual cycle, Fertilisation, embryo development (blastocyst, implantation), Pregnancy and placenta, Parturition, Lactation."},
+    {"subject": "Biology", "chapter": "Reproductive Health", "topics": "Need for reproductive health, prevention of sexually transmitted diseases (STD), Birth control (Need and Methods, Contraception, MTP), Amniocentesis, Infertility and assisted reproductive technologies (IVF, ZIFT, GIFT)."},
+    {"subject": "Biology", "chapter": "Principles of Inheritance and Variation", "topics": "Mendelian Inheritance, Deviations from Mendelism (Incomplete dominance, Co-dominance, Multiple alleles), Polygenic inheritance, Chromosome theory, Sex determination, Linkage and crossing over, Sex linked inheritance (Haemophilia, Colour blindness), Chromosomal disorders (Down's, Turner's, Klinefelter's)."},
+    {"subject": "Biology", "chapter": "Molecular Basis of Inheritance", "topics": "DNA as genetic material, Structure of DNA and RNA, DNA packaging, DNA replication, Central dogma, Transcription, genetic code, translation, Gene expression and regulation (Lac Operon), Genome and HGP, DNA finger printing."},
+    {"subject": "Biology", "chapter": "Evolution", "topics": "Origin of life, Biological evolution, evidences (Paleontology, comparative anatomy, embryology, molecular), Darwin's contribution, Modern Synthetic theory, Mechanism of evolution (Mutation, Recombination, Natural Selection), Gene flow, Hardy-Weinberg principle, Human evolution."},
+    {"subject": "Biology", "chapter": "Human Health and Disease", "topics": "Pathogens, parasites causing human diseases (Malaria, Filariasis, Ascariasis, Typhoid, Pneumonia, common cold, ring worm, dengue), Basic concepts of immunology (vaccines), Cancer, HIV and AIDS, Adolescence, drug and alcohol abuse."},
+    {"subject": "Biology", "chapter": "Strategies for Enhancement in Food Production", "topics": "Improvement in food production, Plant breeding, tissue culture, single cell protein, Biofortification, Apiculture and Animal husbandry."},
+    {"subject": "Biology", "chapter": "Microbes in Human Welfare", "topics": "In household food processing, industrial production, sewage treatment, energy generation and as biocontrol agents and biofertilizers."},
+    {"subject": "Biology", "chapter": "Biotechnology: Principles and Processes", "topics": "Principles and process of Biotechnology, Genetic engineering (Recombinant DNA technology)."},
+    {"subject": "Biology", "chapter": "Biotechnology and Its Applications", "topics": "Application of Biotechnology in health and agriculture, Human insulin and vaccine production, gene therapy, Genetically modified organisms (Bt crops), Transgenic Animals, Biosafety issues (Biopiracy and patents)."},
+    {"subject": "Biology", "chapter": "Organisms and Populations", "topics": "Organisms and environment, Population interactions (mutualism, competition, predation, parasitism), Population attributes (growth, birth rate and death rate, age distribution)."},
+    {"subject": "Biology", "chapter": "Ecosystem", "topics": "Patterns, components, productivity and decomposition, Energy flow, Pyramids of number, biomass, energy."},
+    {"subject": "Biology", "chapter": "Biodiversity and Conservation", "topics": "Concept of Biodiversity, Patterns and Importance of Biodiversity, Loss of Biodiversity, Biodiversity conservation, Hotspots, endangered organisms, extinction, Red Data Book, biosphere reserves, National parks, Sacred Groves."},
+    {"subject": "Biology", "chapter": "Environmental Issues", "topics": "Air pollution and its control, Water pollution and its control, Agrochemicals and their effects, Solid waste management, Radioactive waste management, Greenhouse effect and climate change, Ozone depletion, Deforestation."}
 ]
 
 selected_topic = random.choice(syllabus)
 subject = selected_topic["subject"]
 chapter = selected_topic["chapter"]
-topics = selected_topic["topics"] # <--- नवीन! (डिटेल सिलॅबस)
+topics = selected_topic["topics"] 
 
+# प्रश्नांमध्ये व्हरायटी आणण्यासाठी रँडम प्रकार निवडणे
 difficulties = ["Easy", "Medium", "Hard", "Advanced conceptual"]
 question_types = ["Assertion-Reason", "Statement based", "Direct conceptual", "Numerical/Application based"]
 
@@ -117,13 +153,13 @@ if not valid_model_name:
     print("Error: योग्य मॉडेल सापडला नाही!")
     exit()
 
-# ४. प्रश्न मागवणे (प्रॉम्प्टमध्ये डिटेल सिलॅबस 'Topics' जोडले आहेत)
+# ४. प्रश्न मागवणे (NEET 2025 ची सविस्तर सूचना + Topics)
 url = f"https://generativelanguage.googleapis.com/v1beta/{valid_model_name}:generateContent?key={GEMINI_API_KEY}"
-prompt = f"Generate 10 UNIQUE and {selected_difficulty} level '{selected_type}' multiple choice questions for NEET 2025 exam on the Subject: '{subject}' and Chapter: '{chapter}'. The questions MUST be strictly based ONLY on the following specific topics: {topics}. Make sure these are not the most common questions. Return ONLY a valid JSON array of objects. Keys must be exactly: 'question', 'optionA', 'optionB', 'optionC', 'optionD', 'correctOption', 'explanation'. The 'explanation' must be highly detailed. Do not use markdown tags."
+prompt = f"Generate 10 UNIQUE and {selected_difficulty} level '{selected_type}' multiple choice questions for NEET exam on the Subject: '{subject}' and Chapter: '{chapter}'. STRICTLY base all your questions ONLY on the following NTA NEET 2025 topics: {topics}. Make sure these are not the most common questions. Return ONLY a valid JSON array of objects. Keys must be exactly: 'question', 'optionA', 'optionB', 'optionC', 'optionD', 'correctOption', 'explanation'. The 'explanation' must be detailed. Do not use markdown tags."
 
 payload = {
     "contents": [{"parts": [{"text": prompt}]}],
-    "generationConfig": {"temperature": 0.8} # Temperature थोडे आणखी वाढवले आहे (नवीन प्रकारचे प्रश्न येण्यासाठी)
+    "generationConfig": {"temperature": 0.8} # Temperature वाढवले आहे, जेणेकरून AI अधिक क्रिएटिव्ह विचार करेल
 }
 headers = {"Content-Type": "application/json"}
 response = requests.post(url, json=payload, headers=headers)
@@ -136,6 +172,7 @@ if 'candidates' in data:
         text_response = text_response.replace('```json', '').replace('```', '').strip()
         questions = json.loads(text_response)
 
+        # भारतीय वेळ (IST) काढणे
         ist_time = datetime.utcnow() + timedelta(hours=5, minutes=30)
         timestamp = ist_time.strftime("%Y-%m-%d %H:%M:%S")
 
@@ -146,10 +183,12 @@ if 'candidates' in data:
         for q in questions:
             question_text = q.get('question', '').strip()
             
+            # येथे आपण तपासत आहोत की हा प्रश्न आधीपासून शीटमध्ये आहे का
             if question_text in existing_questions_list:
                 duplicate_count += 1
                 continue 
 
+            # जर प्रश्न नवीन असेल, तरच शीटमध्ये सेव्ह करा
             q_id = f"{subject[:3].upper()}-{uuid.uuid4().hex[:6].upper()}"
             row = [
                 q_id,
@@ -162,7 +201,7 @@ if 'candidates' in data:
                 q.get('optionD', ''),
                 q.get('correctOption', ''),
                 q.get('explanation', ''),
-                timestamp 
+                timestamp # <--- इथे प्रत्येक प्रश्नापुढे वेळ सेव्ह होईल
             ]
             sheet.append_row(row)
             saved_count += 1
