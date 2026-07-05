@@ -1,0 +1,26 @@
+name: Generate NEET MCQs
+
+on:
+  workflow_dispatch: # यामुळे आपण मॅन्युअली बटण दाबून कोड रन करू शकतो
+
+jobs:
+  generate-questions:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install Dependencies
+        run: pip install gspread google-auth requests
+
+      - name: Run Script
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          SHEET_ID: ${{ secrets.SHEET_ID }}
+          GCP_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
+        run: python generate_questions.py
