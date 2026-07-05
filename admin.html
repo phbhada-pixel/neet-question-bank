@@ -95,6 +95,7 @@
     // 🔴 इथे तुमची नवीन WEB APP URL (API Link) टाका
     const API_URL = 'https://script.google.com/macros/s/AKfycbyhhWr0KvLBmWO6f4wXAC0lb1Hd1XlEoy9XtUxJFzFy_ANYD1i832vwPYcNdwuHthq-2g/exec';
 
+       // API ला डेटा पाठवणारे आणि अचूक एरर शोधणारे फंक्शन
     async function callAPI(payload) {
         document.getElementById('loader').style.display = 'block';
         try {
@@ -102,14 +103,28 @@
                 method: 'POST',
                 body: JSON.stringify(payload)
             });
-            const data = await response.json();
-            document.getElementById('loader').style.display = 'none';
-            return data;
+            
+            const textResponse = await response.text(); // आधी डेटा मजकूर म्हणून वाचणे
+            
+            // जर गुगलने JSON ऐवजी HTML एरर पेज पाठवले, तर ते पकडण्यासाठी
+            try {
+                const data = JSON.parse(textResponse);
+                document.getElementById('loader').style.display = 'none';
+                return data;
+            } catch (jsonError) {
+                document.getElementById('loader').style.display = 'none';
+                alert("JSON Parsing Error! गुगलने चुकीचा डेटा पाठवला आहे. \n\nडेटा: " + textResponse.substring(0, 100));
+                console.error("Full Response: ", textResponse);
+            }
+            
         } catch (error) {
             document.getElementById('loader').style.display = 'none';
-            alert("Network Error!");
+            // हा अलर्ट आपल्याला खरा एरर काय आहे ते सांगेल
+            alert("खरा एरर: " + error.message + "\n\nकृपया खात्री करा की API_URL बरोबर आहे.");
+            console.error(error);
         }
     }
+
 
     // ॲडमिन लॉगिन फंक्शन
     async function adminLogin() {
@@ -188,3 +203,4 @@
 </script>
 </body>
 </html>
+
