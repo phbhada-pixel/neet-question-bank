@@ -17,7 +17,7 @@ creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
 client = gspread.authorize(creds)
 sheet = client.open_by_key(SHEET_ID).sheet1
 
-# २. NEET चा संपूर्ण सिलॅबस (तुम्ही दिलेली संपूर्ण यादी)
+# २. NEET चा संपूर्ण सिलॅबस
 syllabus = [
     # --- PHYSICS (Class 11 & 12) ---
     {"subject": "Physics", "chapter": "Physics and Measurement"},
@@ -111,7 +111,7 @@ syllabus = [
     {"subject": "Biology", "chapter": "Environmental Issues"}
 ]
 
-# यादीतून एक विषय आणि चाप्टर दरवेळी रँडमली निवडला जाईल
+# रँडमली विषय निवडणे
 selected_topic = random.choice(syllabus)
 subject = selected_topic["subject"]
 chapter = selected_topic["chapter"]
@@ -139,9 +139,9 @@ if not valid_model_name:
     print("Error: योग्य मॉडेल सापडला नाही!")
     exit()
 
-# ४. प्रश्न मागवणे (एका वेळी ५ प्रश्न, उच्च दर्जाचे)
+# ४. प्रश्न मागवणे (इथे ५ ऐवजी १० प्रश्न करण्याची सूचना दिली आहे)
 url = f"https://generativelanguage.googleapis.com/v1beta/{valid_model_name}:generateContent?key={GEMINI_API_KEY}"
-prompt = f"Generate 5 high-quality, conceptual multiple choice questions for NEET exam on the Subject: '{subject}' and Chapter: '{chapter}'. Return ONLY a valid JSON array of objects. Keys must be exactly: 'question', 'optionA', 'optionB', 'optionC', 'optionD', 'correctOption', 'explanation'. The 'explanation' must be highly detailed and informative explaining why the option is correct and others are wrong. Do not use markdown tags."
+prompt = f"Generate 10 high-quality, conceptual multiple choice questions for NEET exam on the Subject: '{subject}' and Chapter: '{chapter}'. Return ONLY a valid JSON array of objects. Keys must be exactly: 'question', 'optionA', 'optionB', 'optionC', 'optionD', 'correctOption', 'explanation'. The 'explanation' must be highly detailed and informative explaining why the option is correct and others are wrong. Do not use markdown tags."
 
 payload = {
     "contents": [{"parts": [{"text": prompt}]}],
@@ -160,7 +160,6 @@ if 'candidates' in data:
 
         print("गुगल शीटमध्ये डेटा सेव्ह करत आहे...")
         for q in questions:
-            # युनिक Question ID तयार करणे (उदा. BIO-A1B2C3)
             q_id = f"{subject[:3].upper()}-{uuid.uuid4().hex[:6].upper()}"
             
             row = [
