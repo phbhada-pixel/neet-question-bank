@@ -5,6 +5,7 @@ from google.oauth2.service_account import Credentials
 import requests
 import random
 import uuid
+from datetime import datetime, timedelta  # <--- हा नवीन बदल (वेळेसाठी)
 
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 SHEET_ID = os.environ.get("SHEET_ID")
@@ -116,7 +117,6 @@ selected_topic = random.choice(syllabus)
 subject = selected_topic["subject"]
 chapter = selected_topic["chapter"]
 
-# प्रश्नांमध्ये व्हरायटी आणण्यासाठी रँडम प्रकार निवडणे
 difficulties = ["Easy", "Medium", "Hard", "Advanced conceptual"]
 question_types = ["Assertion-Reason", "Match the following", "Statement based", "Direct conceptual", "Numerical/Application based"]
 
@@ -146,24 +146,28 @@ if not valid_model_name:
     print("Error: योग्य मॉडेल सापडला नाही!")
     exit()
 
-# ४. प्रश्न मागवणे (प्रॉम्प्टमध्ये व्हरायटी जोडली आहे)
+# ४. प्रश्न मागवणे 
 url = f"https://generativelanguage.googleapis.com/v1beta/{valid_model_name}:generateContent?key={GEMINI_API_KEY}"
 prompt = f"Generate 10 UNIQUE and {selected_difficulty} level '{selected_type}' multiple choice questions for NEET exam on the Subject: '{subject}' and Chapter: '{chapter}'. Make sure these are not the most common questions. Return ONLY a valid JSON array of objects. Keys must be exactly: 'question', 'optionA', 'optionB', 'optionC', 'optionD', 'correctOption', 'explanation'. The 'explanation' must be detailed. Do not use markdown tags."
 
 payload = {
     "contents": [{"parts": [{"text": prompt}]}],
-    "generationConfig": {"temperature": 0.7} # Temperature वाढवले आहे, जेणेकरून AI अधिक क्रिएटिव्ह विचार करेल
+    "generationConfig": {"temperature": 0.7} 
 }
 headers = {"Content-Type": "application/json"}
 response = requests.post(url, json=payload, headers=headers)
 data = response.json()
 
-# ५. गुगल शीटमध्ये डुप्लिकेट तपासून सेव्ह करणे
+# ५. गुगल शीटमध्ये डुप्लिकेट तपासून आणि वेळेसह सेव्ह करणे
 if 'candidates' in data:
     try:
         text_response = data['candidates'][0]['content']['parts'][0]['text']
         text_response = text_response.replace('```json', '').replace('```', '').strip()
         questions = json.loads(text_response)
+
+        # <--- भारतीय वेळ (IST) काढण्याचा कोड --->
+        ist_time = datetime.utcnow() + timedelta(hours=5, minutes=30)
+        timestamp = ist_time.strftime("%Y-%m-%d %H:%M:%S")
 
         saved_count = 0
         duplicate_count = 0
@@ -172,12 +176,10 @@ if 'candidates' in data:
         for q in questions:
             question_text = q.get('question', '').strip()
             
-            # येथे आपण तपासत आहोत की हा प्रश्न आधीपासून शीटमध्ये आहे का
             if question_text in existing_questions_list:
                 duplicate_count += 1
-                continue # जर असेल, तर हा प्रश्न सोडून द्या आणि पुढच्या प्रश्नावर जा
+                continue 
 
-            # जर प्रश्न नवीन असेल, तरच शीटमध्ये सेव्ह करा
             q_id = f"{subject[:3].upper()}-{uuid.uuid4().hex[:6].upper()}"
             row = [
                 q_id,
@@ -189,7 +191,8 @@ if 'candidates' in data:
                 q.get('optionC', ''),
                 q.get('optionD', ''),
                 q.get('correctOption', ''),
-                q.get('explanation', '')
+                q.get('explanation', ''),
+                timestamp  # <--- इथे प्रत्येक प्रश्नापुढे वेळ सेव्ह होईल
             ]
             sheet.append_row(row)
             saved_count += 1
