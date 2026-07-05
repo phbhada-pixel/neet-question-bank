@@ -3,6 +3,8 @@ import json
 import gspread
 from google.oauth2.service_account import Credentials
 import requests
+import random
+import uuid
 
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 SHEET_ID = os.environ.get("SHEET_ID")
@@ -15,68 +17,85 @@ creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
 client = gspread.authorize(creds)
 sheet = client.open_by_key(SHEET_ID).sheet1
 
-# २. गुगलला विचारणे: "सध्या कोणते मॉडेल्स उपलब्ध आहेत?"
-print("उपलब्ध मॉडेल्सची यादी तपासत आहे...")
+# २. विषयांची आणि चाप्टर्सची यादी (तुम्ही यात भविष्यात आणखी चाप्टर्स वाढवू शकता)
+syllabus = [
+    {"subject": "Physics", "chapter": "Thermodynamics"},
+    {"subject": "Physics", "chapter": "Kinematics"},
+    {"subject": "Chemistry", "chapter": "Chemical Bonding"},
+    {"subject": "Chemistry", "chapter": "Organic Chemistry: Some Basic Principles"},
+    {"subject": "Botany", "chapter": "Plant Kingdom"},
+    {"subject": "Botany", "chapter": "Photosynthesis in Higher Plants"},
+    {"subject": "Zoology", "chapter": "Human Reproduction"},
+    {"subject": "Zoology", "chapter": "Evolution"}
+]
+
+# या यादीतून एक विषय आणि चाप्टर आपोआप निवडणे
+selected_topic = random.choice(syllabus)
+subject = selected_topic["subject"]
+chapter = selected_topic["chapter"]
+
+print(f"आजचा विषय: {subject} - {chapter}")
+
+# ३. गुगलला उपलब्ध मॉडेल्स विचारणे
 list_url = f"https://generativelanguage.googleapis.com/v1beta/models?key={GEMINI_API_KEY}"
 list_response = requests.get(list_url)
 models_data = list_response.json()
 
 valid_model_name = None
-
-# जे मॉडेल 'generateContent' ला सपोर्ट करतात, ते आपोआप निवडणे
 if 'models' in models_data:
     for model in models_data['models']:
         if 'generateContent' in model.get('supportedGenerationMethods', []) and 'flash' in model['name']:
             valid_model_name = model['name']
             break
-    
-    # जर flash नाही मिळाला, तर कोणताही चालणारा मॉडेल निवडणे
     if not valid_model_name:
         for model in models_data['models']:
             if 'generateContent' in model.get('supportedGenerationMethods', []):
                 valid_model_name = model['name']
                 break
-else:
-    print("API Key Error:", models_data)
-    exit()
 
 if not valid_model_name:
-    print("Error: तुमच्या API Key साठी एकही योग्य मॉडेल सापडला नाही!")
+    print("Error: योग्य मॉडेल सापडला नाही!")
     exit()
 
-print(f"सक्सेस! योग्य मॉडेल सापडला: '{valid_model_name}'. आता प्रश्न बनवत आहे...")
-
-# ३. मिळालेला योग्य मॉडेल वापरून प्रश्न तयार करणे
+# ४. API ला सविस्तर माहितीसह प्रश्न विचारणे
 url = f"https://generativelanguage.googleapis.com/v1beta/{valid_model_name}:generateContent?key={GEMINI_API_KEY}"
-prompt = "Generate 5 multiple choice questions for NEET exam on the topic 'Physics: Thermodynamics'. Return ONLY a valid JSON array of objects. Keys: question, optionA, optionB, optionC, optionD, correctOption, explanation. Do not use markdown tags."
+prompt = f"Generate 5 multiple choice questions for NEET exam on the Subject: '{subject}' and Chapter: '{chapter}'. Return ONLY a valid JSON array of objects. Keys must be exactly: 'question', 'optionA', 'optionB', 'optionC', 'optionD', 'correctOption', 'explanation'. The 'explanation' must be highly detailed and informative for students. Do not use markdown tags."
 
 payload = {
     "contents": [{"parts": [{"text": prompt}]}],
-    "generationConfig": {"temperature": 0.2}
+    "generationConfig": {"temperature": 0.3}
 }
-
 headers = {"Content-Type": "application/json"}
 response = requests.post(url, json=payload, headers=headers)
 data = response.json()
 
-# ४. आलेले प्रश्न शीटमध्ये सेव्ह करणे
+# ५. नवीन फॉरमॅटनुसार गुगल शीटमध्ये सेव्ह करणे
 if 'candidates' in data:
     try:
         text_response = data['candidates'][0]['content']['parts'][0]['text']
         text_response = text_response.replace('```json', '').replace('```', '').strip()
         questions = json.loads(text_response)
 
-        print("गुगल शीटमध्ये प्रश्न सेव्ह करत आहे...")
+        print("गुगल शीटमध्ये डेटा सेव्ह करत आहे...")
         for q in questions:
+            # युनिक Question ID तयार करणे (उदा. PHY-8A2F4B)
+            q_id = f"{subject[:3].upper()}-{uuid.uuid4().hex[:6].upper()}"
+            
             row = [
-                q.get('question', ''), q.get('optionA', ''), q.get('optionB', ''), 
-                q.get('optionC', ''), q.get('optionD', ''), q.get('correctOption', ''), 
+                q_id,
+                subject,
+                chapter,
+                q.get('question', ''),
+                q.get('optionA', ''),
+                q.get('optionB', ''),
+                q.get('optionC', ''),
+                q.get('optionD', ''),
+                q.get('correctOption', ''),
                 q.get('explanation', '')
             ]
             sheet.append_row(row)
-        print(f"यशस्वी! गुगल शीटमध्ये {len(questions)} नवीन प्रश्न जोडले गेले आहेत. शीट तपासा!")
+        print(f"यशस्वी! {subject} - {chapter} चे {len(questions)} नवीन प्रश्न जोडले गेले.")
     except Exception as e:
         print(f"Error parsing JSON: {e}")
-        print("API ने पाठवलेला मजकूर:", text_response)
 else:
     print("अंतिम API Error:", data)
