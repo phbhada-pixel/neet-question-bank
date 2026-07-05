@@ -2,8 +2,11 @@ name: Generate NEET MCQs
 
 on:
   workflow_dispatch: 
+  schedule:
+    - cron: '0 * * * *' # याचा अर्थ: दर तासाला आपोआप रन करा (Every Hour)
 
 jobs:
+# ... बाकीचा खालचा कोड तसाच ठेवा
   generate-questions:
     runs-on: ubuntu-latest
     steps:
