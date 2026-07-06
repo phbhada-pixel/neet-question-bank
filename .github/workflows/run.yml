@@ -2,9 +2,11 @@ name: Generate NEET MCQs
 
 on:
   workflow_dispatch: 
+  schedule:
+    - cron: '0 */1 * * *'
 
 jobs:
-  generate-questions:
+generate-questions:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repo
