@@ -14,7 +14,7 @@ GCP_CRED_JSON = os.environ.get("GCP_CREDENTIALS")
 # १. गुगल शीटशी कनेक्शन
 scopes = ["https://www.googleapis.com/auth/spreadsheets"]
 creds_dict = json.loads(GCP_CRED_JSON)
-creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
+creds = Credentials.fromservice_account_info(creds_dict, scopes=scopes)
 client = gspread.authorize(creds)
 sheet = client.open_by_key(SHEET_ID).sheet1
 
@@ -120,7 +120,68 @@ syllabus = [
     {"subject": "Zoology", "chapter": "Biotechnology and Its Applications", "topics": "Application of Biotechnology in health and agriculture, Human insulin and vaccine production, gene therapy, Genetically modified organisms (Bt crops), Transgenic Animals, Biosafety issues (Biopiracy and patents)."}
 ]
 
-selected_topic = random.choice(syllabus)
+# --- [नवीन बदल] चॅप्टरनुसार वेटेज (Weightage) ठरवणे ---
+# परीक्षेतील महत्वानुसार (Questions per year) वेटेज दिले आहे. १० म्हणजे सर्वाधिक महत्वाचे.
+weightage_map = {
+    # Biology - Highest Weightage (7-10)
+    "Principles of Inheritance and Variation": 10,
+    "Molecular Basis of Inheritance": 10,
+    "Digestion and Absorption": 9,
+    "Breathing and Exchange of Gases": 9,
+    "Body Fluids and Circulation": 9,
+    "Excretory Products and Their Elimination": 9,
+    "Locomotion and Movement": 9,
+    "Neural Control and Coordination": 9,
+    "Chemical Coordination and Integration": 9,
+    "Biotechnology: Principles and Processes": 8,
+    "Biotechnology and Its Applications": 8,
+    "Organisms and Populations": 8,
+    "Ecosystem": 8,
+    "Biodiversity and Conservation": 8,
+    "Environmental Issues": 8,
+    "Evolution": 8,
+    "Sexual Reproduction in Flowering Plants": 7,
+    "Cell: The Unit of Life": 7,
+    
+    # Physics - High Weightage (6-8)
+    "Current Electricity": 8,
+    "Electrostatics": 7,
+    "Optics (Ray Optics and Wave Optics)": 7,
+    "System of Particles and Rotational Motion": 7,
+    "Thermodynamics": 6,  # Physics
+    "Electronic Devices (Semiconductor Electronics)": 6,
+    "Dual Nature of Matter and Radiation": 6,
+    "Atoms and Nuclei": 6,
+
+    # Chemistry - High Weightage (6-7)
+    "Chemical Bonding and Molecular Structure": 7,
+    "Organic Chemistry – Some Basic Principles and Techniques": 7,
+    "Coordination Compounds": 6,
+    "Aldehydes, Ketones and Carboxylic Acids": 6,
+    "Equilibrium": 5,
+    "d- and f-Block Elements": 5,
+    "Chemical Kinetics": 5,
+    "Electrochemistry": 5
+}
+
+# प्रत्येक चॅप्टरला वेटेज लागू करणे (जर लिस्टमध्ये नाव नसेल, तर Biology ला ४ आणि Physics/Chem ला ३ वेटेज)
+chapter_weights = []
+for topic in syllabus:
+    chap_name = topic["chapter"]
+    subj_name = topic["subject"]
+    
+    if chap_name in weightage_map:
+        chapter_weights.append(weightage_map[chap_name])
+    else:
+        if subj_name in ["Botany", "Zoology"]:
+            chapter_weights.append(4) # Bio चे ५०% वेटेज असल्याने प्राधान्य
+        else:
+            chapter_weights.append(3)
+
+# रँडम चॉईस ऐवजी, आता वेटेजनुसार (Weighted Random Selection) चॅप्टर निवडला जाईल
+selected_topic = random.choices(syllabus, weights=chapter_weights, k=1)[0]
+# -------------------------------------------------------------
+
 subject = selected_topic["subject"]
 chapter = selected_topic["chapter"]
 topics = selected_topic["topics"] 
