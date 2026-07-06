@@ -14,7 +14,7 @@ GCP_CRED_JSON = os.environ.get("GCP_CREDENTIALS")
 # १. गुगल शीटशी कनेक्शन
 scopes = ["https://www.googleapis.com/auth/spreadsheets"]
 creds_dict = json.loads(GCP_CRED_JSON)
-creds = Credentials.fromservice_account_info(creds_dict, scopes=scopes)
+creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
 client = gspread.authorize(creds)
 sheet = client.open_by_key(SHEET_ID).sheet1
 
