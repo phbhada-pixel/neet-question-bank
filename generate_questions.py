@@ -230,13 +230,13 @@ if not valid_model_name:
     exit()
 
 # ४. प्रश्न मागवणे (NEET 2025 ची सविस्तर सूचना + Topics)
-url = f"https://generativelanguage.googleapis.com/v1beta/{valid_model_name}:generateContent?key={GEMINI_API_KEY}"
+url = f"""https://generativelanguage.googleapis.com/v1beta/{valid_model_name}:generateContent?key={GEMINI_API_KEY}"
 prompt = f"Generate 20 UNIQUE and {selected_difficulty} level '{selected_type}' multiple choice questions for NEET exam on the Subject: '{subject}' 
 and Chapter: '{chapter}'. STRICTLY base all your questions 
 ONLY on the following NTA NEET 2025 topics: {topics}. Make sure these are not the most common questions. Return ONLY a valid JSON array of objects. 
 Keys must be exactly: 'question', 'optionA', 'optionB', 'optionC', 'optionD', 'correctOption', 'explanation'. If generating 'Match the following' 
 questions, include Column I and Column II entirely within the 'question' key using '\n' for new lines. Do not create new JSON keys.
-"
+"""
 
 payload = {
     "contents": [{"parts": [{"text": prompt}]}],
