@@ -234,44 +234,49 @@ response = requests.post(url, json=payload, headers=headers)
 data = response.json()
 
 # ५. गुगल शीटमध्ये डुप्लिकेट तपासून आणि वेळेसह सेव्ह करणे
+if 'candidates' in data:
+    try:
+        text_response = data['candidates'][0]['content']['parts'][0]['text']
+        text_response = text_response.replace('```json', '').replace('```', '').strip()
+        questions = json.loads(text_response)
+
+            # भारतीय वेळ (IST) काढणे
+        ist_time = datetime.utcnow() + timedelta(hours=5, minutes=30)
+        timestamp = ist_time.strftime("%Y-%m-%d %H:%M:%S")
+
         saved_count = 0
         duplicate_count = 0
-        rows_to_add = [] # नवीन: सर्व प्रश्न एकत्र साठवण्यासाठी एक लिस्ट
-
+        rows_to_add = [] # सर्व प्रश्न एकत्र साठवण्यासाठी लिस्ट
         print("गुगल शीटमध्ये डेटा सेव्ह करत आहे...")
         for q in questions:
             question_text = q.get('question', '').strip()
-            
-            # येथे आपण तपासत आहोत की हा प्रश्न आधीपासून शीटमध्ये आहे का
             if question_text in existing_questions_list:
                 duplicate_count += 1
                 continue 
+                q_id = f"{subject[:3].upper()}-{uuid.uuid4().hex[:6].upper()}"
+                row = [
+                    q_id,
+                    subject,
+                    chapter,
+                    question_text,
+                    q.get('optionA', ''),
+                    q.get('optionB', ''),
+                    q.get('optionC', ''),
+                    q.get('optionD', ''),
+                    q.get('correctOption', ''),
+                    q.get('explanation', ''),
+                    timestamp
+                ]
+                rows_to_add.append(row)
+                saved_count += 1
 
-            # जर प्रश्न नवीन असेल, तरच लिस्टमध्ये जोडा
-            q_id = f"{subject[:3].upper()}-{uuid.uuid4().hex[:6].upper()}"
-            row = [
-                q_id,
-                subject,
-                chapter,
-                question_text,
-                q.get('optionA', ''),
-                q.get('optionB', ''),
-                q.get('optionC', ''),
-                q.get('optionD', ''),
-                q.get('correctOption', ''),
-                q.get('explanation', ''),
-                timestamp # <--- इथे प्रत्येक प्रश्नापुढे वेळ सेव्ह होईल
-            ]
-            rows_to_add.append(row) # प्रश्न थेट शीटमध्ये टाकण्याऐवजी लिस्टमध्ये जमा करणे
-            saved_count += 1
-            
-        # शेवटी सर्व जमा झालेले प्रश्न एकाच वेळी गुगल शीटमध्ये सेव्ह करणे (FAST Method)
-        if len(rows_to_add) > 0:
-            sheet.append_rows(rows_to_add)
-            
-        print(f"यशस्वी! {saved_count} नवीन प्रश्न एकाच वेळी जोडले गेले. ({duplicate_count} डुप्लिकेट प्रश्न वगळले).")
-    except Exception as e:
-        print(f"Error parsing JSON: {e}")
-        print("AI ने पाठवलेला चुकीचा डेटा:", text_response) # यामुळे भविष्यात नेमका काय एरर आला ते समजेल
+                
+    if len(rows_to_add) > 0:
+    sheet.append_rows(rows_to_add)
+    print(f"यशस्वी! {saved_count} नवीन प्रश्न जोडले गेले. ({duplicate_count} डुप्लिकेट प्रश्न वगळले).")
+except Exception as e:
+    print(f"Error parsing JSON: {e}")
+            # जर AI ने चुकीचा फॉरमॅट पाठवला, तर तो इथे दिसेल
+    print("AI ने पाठवलेला डेटा:", text_response if 'text_response' in locals() else "Unknown")
 else:
     print("अंतिम API Error:", data)
