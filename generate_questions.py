@@ -181,7 +181,9 @@ chapter = selected_topic["chapter"]
 topics = selected_topic["topics"] 
 
 difficulties = ["Easy", "Medium", "Hard", "Advanced conceptual"]
-question_types = ["Assertion-Reason", "Statement based", "Match the following", "Direct conceptual", "Numerical/Application based"]
+question_types = [#"Assertion-Reason", "Statement based", 
+                  "Match the following"
+                  #"Direct conceptual", "Numerical/Application based"]
 
 selected_difficulty = random.choice(difficulties)
 selected_type = random.choice(question_types)
