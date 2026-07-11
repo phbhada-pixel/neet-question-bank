@@ -188,20 +188,7 @@ topics = selected_topic["topics"]
 
 # प्रश्नांमध्ये व्हरायटी आणण्यासाठी रँडम प्रकार निवडणे
 difficulties = ["Easy", "Medium", "Hard", "Advanced conceptual"]
-question_types = [#"Assertion-Reason", "Statement based", "Direct conceptual", 
-    #"Numerical/Application based", "Fill in blanks"
-   """
-   {
-  "question": "Match the following correctly:\n\nColumn I:\n(P) Hydrogen as fuel\n(Q) Hydrogen economy\n(R) Ortho and para hydrogen\n(S) Deuterium\n\nColumn II:\n(i) A conceptual framework for energy transport\n(ii) Emits only water as exhaust\n(iii) Less than 0.02% natural abundance\n(iv) Difference in nuclear spin",
-  "optionA": "P-(ii), Q-(i), R-(iv), S-(iii)",
-  "optionB": "P-(i), Q-(ii), R-(iv), S-(iii)",
-  "optionC": "P-(ii), Q-(iv), R-(i), S-(iii)",
-  "optionD": "P-(iv), Q-(i), R-(ii), S-(iii)",
-  "correctOption": "Option A",
-  "explanation": "Hydrogen used as fuel in fuel cells emits only water. The 'Hydrogen economy' is a proposed system of delivering energy using hydrogen. Ortho and para isomers of hydrogen exist due to differences in the alignment of their nuclear spins. Deuterium is an isotope of hydrogen with a very low natural abundance of about 0.0156%."
-}
-   """ 
-]
+question_types = ["Assertion-Reason", "Statement based", "Match the following", "Direct conceptual", "Numerical/Application based"]
 
 selected_difficulty = random.choice(difficulties)
 selected_type = random.choice(question_types)
@@ -247,18 +234,9 @@ response = requests.post(url, json=payload, headers=headers)
 data = response.json()
 
 # ५. गुगल शीटमध्ये डुप्लिकेट तपासून आणि वेळेसह सेव्ह करणे
-if 'candidates' in data:
-    try:
-        text_response = data['candidates'][0]['content']['parts'][0]['text']
-        text_response = text_response.replace('```json', '').replace('```', '').strip()
-        questions = json.loads(text_response)
-
-        # भारतीय वेळ (IST) काढणे
-        ist_time = datetime.utcnow() + timedelta(hours=5, minutes=30)
-        timestamp = ist_time.strftime("%Y-%m-%d %H:%M:%S")
-
         saved_count = 0
         duplicate_count = 0
+        rows_to_add = [] # नवीन: सर्व प्रश्न एकत्र साठवण्यासाठी एक लिस्ट
 
         print("गुगल शीटमध्ये डेटा सेव्ह करत आहे...")
         for q in questions:
@@ -269,7 +247,7 @@ if 'candidates' in data:
                 duplicate_count += 1
                 continue 
 
-            # जर प्रश्न नवीन असेल, तरच शीटमध्ये सेव्ह करा
+            # जर प्रश्न नवीन असेल, तरच लिस्टमध्ये जोडा
             q_id = f"{subject[:3].upper()}-{uuid.uuid4().hex[:6].upper()}"
             row = [
                 q_id,
@@ -284,11 +262,16 @@ if 'candidates' in data:
                 q.get('explanation', ''),
                 timestamp # <--- इथे प्रत्येक प्रश्नापुढे वेळ सेव्ह होईल
             ]
-            sheet.append_row(row)
+            rows_to_add.append(row) # प्रश्न थेट शीटमध्ये टाकण्याऐवजी लिस्टमध्ये जमा करणे
             saved_count += 1
             
-        print(f"यशस्वी! {saved_count} नवीन प्रश्न जोडले गेले. ({duplicate_count} डुप्लिकेट प्रश्न वगळले).")
+        # शेवटी सर्व जमा झालेले प्रश्न एकाच वेळी गुगल शीटमध्ये सेव्ह करणे (FAST Method)
+        if len(rows_to_add) > 0:
+            sheet.append_rows(rows_to_add)
+            
+        print(f"यशस्वी! {saved_count} नवीन प्रश्न एकाच वेळी जोडले गेले. ({duplicate_count} डुप्लिकेट प्रश्न वगळले).")
     except Exception as e:
         print(f"Error parsing JSON: {e}")
+        print("AI ने पाठवलेला चुकीचा डेटा:", text_response) # यामुळे भविष्यात नेमका काय एरर आला ते समजेल
 else:
     print("अंतिम API Error:", data)
