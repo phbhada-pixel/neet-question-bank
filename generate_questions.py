@@ -188,8 +188,15 @@ topics = selected_topic["topics"]
 
 # प्रश्नांमध्ये व्हरायटी आणण्यासाठी रँडम प्रकार निवडणे
 difficulties = ["Easy", "Medium", "Hard", "Advanced conceptual"]
-question_types = [#"Assertion-Reason", "Statement based", "Direct conceptual", "Numerical/Application based", 
-    "Match the coloumns"]
+question_types = [#"Assertion-Reason", "Statement based", "Direct conceptual", 
+    "Numerical/Application based", 
+    "Generate the question:
+{
+"Question": "Match the following:",
+"Column_I": ["(P) Hydrogen...", "(Q) Hydrogen economy...", "(R) Ortho and para...", "(S) Deuterium..."],
+"Column_II": ["(i) A conceptual framework...", "(ii) Emits only water...", "(iii) Less than 0.02%...", "(iv) Difference in nuclear spin..."],
+"Option A": "...", "Option B": "...", ...
+}"]
 
 selected_difficulty = random.choice(difficulties)
 selected_type = random.choice(question_types)
