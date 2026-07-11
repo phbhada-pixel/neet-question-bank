@@ -188,17 +188,19 @@ topics = selected_topic["topics"]
 
 # प्रश्नांमध्ये व्हरायटी आणण्यासाठी रँडम प्रकार निवडणे
 difficulties = ["Easy", "Medium", "Hard", "Advanced conceptual"]
-question_types = ["Assertion-Reason", "Statement based", "Direct conceptual", 
-    "Numerical/Application based", "Fill in blanks"
+question_types = [#"Assertion-Reason", "Statement based", "Direct conceptual", 
+    #"Numerical/Application based", "Fill in blanks"
    """
- #   Generate the question in this specific JSON structure:
-#{
-#"Question": "Match the following:",
-#"Column_I": ["(P) Hydrogen...", "(Q) Hydrogen economy...", "(R) Ortho and para...", "(S) Deuterium..."],
-#"Column_II": ["(i) A conceptual framework...", "(ii) Emits only water...", "(iii) Less than 0.02%...", "(iv) Difference in nuclear spin..."],
-#"Option A": "...", "Option B": "...", ...
-#}
- #   """ 
+   {
+  "question": "Match the following correctly:\n\nColumn I:\n(P) Hydrogen as fuel\n(Q) Hydrogen economy\n(R) Ortho and para hydrogen\n(S) Deuterium\n\nColumn II:\n(i) A conceptual framework for energy transport\n(ii) Emits only water as exhaust\n(iii) Less than 0.02% natural abundance\n(iv) Difference in nuclear spin",
+  "optionA": "P-(ii), Q-(i), R-(iv), S-(iii)",
+  "optionB": "P-(i), Q-(ii), R-(iv), S-(iii)",
+  "optionC": "P-(ii), Q-(iv), R-(i), S-(iii)",
+  "optionD": "P-(iv), Q-(i), R-(ii), S-(iii)",
+  "correctOption": "Option A",
+  "explanation": "Hydrogen used as fuel in fuel cells emits only water. The 'Hydrogen economy' is a proposed system of delivering energy using hydrogen. Ortho and para isomers of hydrogen exist due to differences in the alignment of their nuclear spins. Deuterium is an isotope of hydrogen with a very low natural abundance of about 0.0156%."
+}
+   """ 
 ]
 
 selected_difficulty = random.choice(difficulties)
@@ -229,7 +231,12 @@ if not valid_model_name:
 
 # ४. प्रश्न मागवणे (NEET 2025 ची सविस्तर सूचना + Topics)
 url = f"https://generativelanguage.googleapis.com/v1beta/{valid_model_name}:generateContent?key={GEMINI_API_KEY}"
-prompt = f"Generate 20 UNIQUE and {selected_difficulty} level '{selected_type}' multiple choice questions for NEET exam on the Subject: '{subject}' and Chapter: '{chapter}'. STRICTLY base all your questions ONLY on the following NTA NEET 2025 topics: {topics}. Make sure these are not the most common questions. Return ONLY a valid JSON array of objects. Keys must be exactly: 'question', 'optionA', 'optionB', 'optionC', 'optionD', 'correctOption', 'explanation'. The 'explanation' must be detailed. Do not use markdown tags."
+prompt = f"Generate 20 UNIQUE and {selected_difficulty} level '{selected_type}' multiple choice questions for NEET exam on the Subject: '{subject}' 
+and Chapter: '{chapter}'. STRICTLY base all your questions 
+ONLY on the following NTA NEET 2025 topics: {topics}. Make sure these are not the most common questions. Return ONLY a valid JSON array of objects. 
+Keys must be exactly: 'question', 'optionA', 'optionB', 'optionC', 'optionD', 'correctOption', 'explanation'. If generating 'Match the following' 
+questions, include Column I and Column II entirely within the 'question' key using '\n' for new lines. Do not create new JSON keys.
+"
 
 payload = {
     "contents": [{"parts": [{"text": prompt}]}],
