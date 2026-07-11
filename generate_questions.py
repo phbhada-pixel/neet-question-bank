@@ -235,24 +235,29 @@ data = response.json()
 
 # ५. गुगल शीटमध्ये डुप्लिकेट तपासून आणि वेळेसह सेव्ह करणे
 if 'candidates' in data:
-    try:
-        text_response = data['candidates'][0]['content']['parts'][0]['text']
-        text_response = text_response.replace('```json', '').replace('```', '').strip()
-        questions = json.loads(text_response)
+        try:
+            text_response = data['candidates'][0]['content']['parts'][0]['text']
+            text_response = text_response.replace('```json', '').replace('```', '').strip()
+            questions = json.loads(text_response)
 
             # भारतीय वेळ (IST) काढणे
-        ist_time = datetime.utcnow() + timedelta(hours=5, minutes=30)
-        timestamp = ist_time.strftime("%Y-%m-%d %H:%M:%S")
+            ist_time = datetime.utcnow() + timedelta(hours=5, minutes=30)
+            timestamp = ist_time.strftime("%Y-%m-%d %H:%M:%S")
 
-        saved_count = 0
-        duplicate_count = 0
-        rows_to_add = [] # सर्व प्रश्न एकत्र साठवण्यासाठी लिस्ट
-        print("गुगल शीटमध्ये डेटा सेव्ह करत आहे...")
-        for q in questions:
-            question_text = q.get('question', '').strip()
-            if question_text in existing_questions_list:
-                duplicate_count += 1
-                continue 
+            saved_count = 0
+            duplicate_count = 0
+            rows_to_add = [] # सर्व प्रश्न एकत्र साठवण्यासाठी लिस्ट
+
+            print("गुगल शीटमध्ये डेटा सेव्ह करत आहे...")
+            for q in questions:
+                question_text = q.get('question', '').strip()
+                
+                # प्रश्न आधीपासून शीटमध्ये आहे का ते तपासा
+                if question_text in existing_questions_list:
+                    duplicate_count += 1
+                    continue 
+
+                # प्रश्न नवीन असेल तर लिस्टमध्ये जोडा
                 q_id = f"{subject[:3].upper()}-{uuid.uuid4().hex[:6].upper()}"
                 row = [
                     q_id,
@@ -269,14 +274,17 @@ if 'candidates' in data:
                 ]
                 rows_to_add.append(row)
                 saved_count += 1
+            
+            # लूप संपल्यानंतर, इथे 'if' ब्लॉक टाका
+            if len(rows_to_add) > 0:
+                sheet.append_rows(rows_to_add)
+                print(f"यशस्वी! {saved_count} नवीन प्रश्न जोडले गेले. ({duplicate_count} डुप्लिकेट प्रश्न वगळले).")
+            else:
+                print("काहीही नवीन प्रश्न नाहीत.")
 
-                
-    if len(rows_to_add) > 0:
-    sheet.append_rows(rows_to_add)
-    print(f"यशस्वी! {saved_count} नवीन प्रश्न जोडले गेले. ({duplicate_count} डुप्लिकेट प्रश्न वगळले).")
-except Exception as e:
-    print(f"Error parsing JSON: {e}")
+        except Exception as e:
+            print(f"Error parsing JSON: {e}")
             # जर AI ने चुकीचा फॉरमॅट पाठवला, तर तो इथे दिसेल
-    print("AI ने पाठवलेला डेटा:", text_response if 'text_response' in locals() else "Unknown")
-else:
-    print("अंतिम API Error:", data)
+            print("AI ने पाठवलेला डेटा:", text_response if 'text_response' in locals() else "Unknown")
+    else:
+        print("अंतिम API Error:", data)
