@@ -188,7 +188,7 @@ topics = selected_topic["topics"]
 
 # प्रश्नांमध्ये व्हरायटी आणण्यासाठी रँडम प्रकार निवडणे
 difficulties = ["Easy", "Medium", "Hard", "Advanced conceptual"]
-question_types = ["Assertion-Reason", "Statement based", "Direct conceptual", "Numerical/Application based"]
+question_types = ["Assertion-Reason", "Statement based", "Direct conceptual", "Numerical/Application based", "Match the coloumns"]
 
 selected_difficulty = random.choice(difficulties)
 selected_type = random.choice(question_types)
