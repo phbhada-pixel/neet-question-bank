@@ -188,20 +188,8 @@ topics = selected_topic["topics"]
 
 # प्रश्नांमध्ये व्हरायटी आणण्यासाठी रँडम प्रकार निवडणे
 difficulties = ["Easy", "Medium", "Hard", "Advanced conceptual"]
-question_types = [#"Assertion-Reason", "Statement based", "Direct conceptual", 
-    #"Numerical/Application based", "Fill in blanks"
-   """
-   {
-  "question": "Match the following correctly:\n\nColumn I:\n(P) Hydrogen as fuel\n(Q) Hydrogen economy\n(R) Ortho and para hydrogen\n(S) Deuterium\n\nColumn II:\n(i) A conceptual framework for energy transport\n(ii) Emits only water as exhaust\n(iii) Less than 0.02% natural abundance\n(iv) Difference in nuclear spin",
-  "optionA": "P-(ii), Q-(i), R-(iv), S-(iii)",
-  "optionB": "P-(i), Q-(ii), R-(iv), S-(iii)",
-  "optionC": "P-(ii), Q-(iv), R-(i), S-(iii)",
-  "optionD": "P-(iv), Q-(i), R-(ii), S-(iii)",
-  "correctOption": "Option A",
-  "explanation": "Hydrogen used as fuel in fuel cells emits only water. The 'Hydrogen economy' is a proposed system of delivering energy using hydrogen. Ortho and para isomers of hydrogen exist due to differences in the alignment of their nuclear spins. Deuterium is an isotope of hydrogen with a very low natural abundance of about 0.0156%."
-}
-   """ 
-]
+# (येथे आपण लिस्ट दुरुस्त केली आहे)
+question_types = ["Assertion-Reason", "Statement based", "Match the following", "Direct conceptual", "Numerical/Application based"]
 
 selected_difficulty = random.choice(difficulties)
 selected_type = random.choice(question_types)
@@ -235,12 +223,12 @@ prompt = f"""Generate 20 UNIQUE and {selected_difficulty} level '{selected_type}
 and Chapter: '{chapter}'. STRICTLY base all your questions 
 ONLY on the following NTA NEET 2025 topics: {topics}. Make sure these are not the most common questions. Return ONLY a valid JSON array of objects. 
 Keys must be exactly: 'question', 'optionA', 'optionB', 'optionC', 'optionD', 'correctOption', 'explanation'. If generating 'Match the following' 
-questions, include Column I and Column II entirely within the 'question' key using '\n' for new lines. Do not create new JSON keys.
+questions, include Column I and Column II entirely within the 'question' key using '\\n' for new lines. Do not create new JSON keys.
 """
 
 payload = {
     "contents": [{"parts": [{"text": prompt}]}],
-    "generationConfig": {"temperature": 0.8} # Temperature वाढवले आहे, जेणेकरून AI अधिक क्रिएटिव्ह विचार करेल
+    "generationConfig": {"temperature": 0.8} # Temperature वाढवले आहे
 }
 headers = {"Content-Type": "application/json"}
 response = requests.post(url, json=payload, headers=headers)
@@ -259,17 +247,18 @@ if 'candidates' in data:
 
         saved_count = 0
         duplicate_count = 0
+        rows_to_add = [] # सर्व प्रश्न एकत्र साठवण्यासाठी लिस्ट (नवीन पद्धत)
 
         print("गुगल शीटमध्ये डेटा सेव्ह करत आहे...")
         for q in questions:
             question_text = q.get('question', '').strip()
             
-            # येथे आपण तपासत आहोत की हा प्रश्न आधीपासून शीटमध्ये आहे का
+            # प्रश्न आधीपासून शीटमध्ये आहे का ते तपासा
             if question_text in existing_questions_list:
                 duplicate_count += 1
                 continue 
 
-            # जर प्रश्न नवीन असेल, तरच शीटमध्ये सेव्ह करा
+            # प्रश्न नवीन असेल तर लिस्टमध्ये जोडा
             q_id = f"{subject[:3].upper()}-{uuid.uuid4().hex[:6].upper()}"
             row = [
                 q_id,
@@ -282,13 +271,21 @@ if 'candidates' in data:
                 q.get('optionD', ''),
                 q.get('correctOption', ''),
                 q.get('explanation', ''),
-                timestamp # <--- इथे प्रत्येक प्रश्नापुढे वेळ सेव्ह होईल
+                timestamp
             ]
-            sheet.append_row(row)
+            rows_to_add.append(row)
             saved_count += 1
             
-        print(f"यशस्वी! {saved_count} नवीन प्रश्न जोडले गेले. ({duplicate_count} डुप्लिकेट प्रश्न वगळले).")
+        # लूप संपल्यानंतर सर्व प्रश्न एकाच वेळी गुगल शीटमध्ये सेव्ह करणे (FAST)
+        if len(rows_to_add) > 0:
+            sheet.append_rows(rows_to_add)
+            print(f"यशस्वी! {saved_count} नवीन प्रश्न जोडले गेले. ({duplicate_count} डुप्लिकेट प्रश्न वगळले).")
+        else:
+            print("काहीही नवीन प्रश्न नाहीत.")
+
     except Exception as e:
         print(f"Error parsing JSON: {e}")
+        # जर AI ने चुकीचा फॉरमॅट पाठवला, तर तो इथे दिसेल
+        print("AI ने पाठवलेला डेटा:", text_response if 'text_response' in locals() else "Unknown")
 else:
     print("अंतिम API Error:", data)
