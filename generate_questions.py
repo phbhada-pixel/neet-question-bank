@@ -24,7 +24,7 @@ try:
 except:
     existing_questions_list = []
 
-# २. NEET चा संपूर्ण सिलॅबस (Physics, Chemistry, Botany, Zoology) सविस्तर Topics सह
+# २. NEET चा संपूर्ण सिलॅबस
 syllabus = [
     # --- PHYSICS ---
     {"subject": "Physics", "chapter": "Physics and Measurement", "topics": "Units of measurements, System of Units, SI Units, fundamental and derived units, least count, significant figures, Errors in measurements, Dimensions of Physics quantities, dimensional analysis."},
@@ -120,8 +120,7 @@ syllabus = [
     {"subject": "Zoology", "chapter": "Biotechnology and Its Applications", "topics": "Application of Biotechnology in health and agriculture, Human insulin and vaccine production, gene therapy, Genetically modified organisms (Bt crops), Transgenic Animals, Biosafety issues (Biopiracy and patents)."}
 ]
 
-# --- [नवीन बदल] चॅप्टरनुसार वेटेज (Weightage) ठरवणे ---
-# परीक्षेतील महत्वानुसार (Questions per year) वेटेज दिले आहे. १० म्हणजे सर्वाधिक महत्वाचे.
+# --- चॅप्टरनुसार वेटेज (Weightage) ठरवणे ---
 weightage_map = {
     # Biology - Highest Weightage (7-10)
     "Principles of Inheritance and Variation": 10,
@@ -148,7 +147,7 @@ weightage_map = {
     "Electrostatics": 7,
     "Optics (Ray Optics and Wave Optics)": 7,
     "System of Particles and Rotational Motion": 7,
-    "Thermodynamics": 6,  # Physics
+    "Thermodynamics": 6, 
     "Electronic Devices (Semiconductor Electronics)": 6,
     "Dual Nature of Matter and Radiation": 6,
     "Atoms and Nuclei": 6,
@@ -164,31 +163,24 @@ weightage_map = {
     "Electrochemistry": 5
 }
 
-# प्रत्येक चॅप्टरला वेटेज लागू करणे (जर लिस्टमध्ये नाव नसेल, तर Biology ला ४ आणि Physics/Chem ला ३ वेटेज)
 chapter_weights = []
 for topic in syllabus:
     chap_name = topic["chapter"]
     subj_name = topic["subject"]
-    
     if chap_name in weightage_map:
         chapter_weights.append(weightage_map[chap_name])
     else:
         if subj_name in ["Botany", "Zoology"]:
-            chapter_weights.append(4) # Bio चे ५०% वेटेज असल्याने प्राधान्य
+            chapter_weights.append(4) 
         else:
             chapter_weights.append(3)
 
-# रँडम चॉईस ऐवजी, आता वेटेजनुसार (Weighted Random Selection) चॅप्टर निवडला जाईल
 selected_topic = random.choices(syllabus, weights=chapter_weights, k=1)[0]
-# -------------------------------------------------------------
-
 subject = selected_topic["subject"]
 chapter = selected_topic["chapter"]
 topics = selected_topic["topics"] 
 
-# प्रश्नांमध्ये व्हरायटी आणण्यासाठी रँडम प्रकार निवडणे
 difficulties = ["Easy", "Medium", "Hard", "Advanced conceptual"]
-# (येथे आपण लिस्ट दुरुस्त केली आहे)
 question_types = ["Assertion-Reason", "Statement based", "Match the following", "Direct conceptual", "Numerical/Application based"]
 
 selected_difficulty = random.choice(difficulties)
@@ -219,17 +211,25 @@ if not valid_model_name:
 
 # ४. प्रश्न मागवणे (NEET 2025 ची सविस्तर सूचना + Topics)
 url = f"https://generativelanguage.googleapis.com/v1beta/{valid_model_name}:generateContent?key={GEMINI_API_KEY}"
+
+# Prompt मध्ये थोडा बदल केला आहे ज्यामुळे AI प्रॉपर JSON schema समजून घेईल.
 prompt = f"""Generate 20 UNIQUE and {selected_difficulty} level '{selected_type}' multiple choice questions for NEET exam on the Subject: '{subject}' 
-and Chapter: '{chapter}'. STRICTLY base all your questions 
-ONLY on the following NTA NEET 2025 topics: {topics}. Make sure these are not the most common questions. Return ONLY a valid JSON array of objects. 
-Keys must be exactly: 'question', 'optionA', 'optionB', 'optionC', 'optionD', 'correctOption', 'explanation'. If generating 'Match the following' 
-questions, include Column I and Column II entirely within the 'question' key using '\\n' for new lines. Do not create new JSON keys.
+and Chapter: '{chapter}'. STRICTLY base all your questions ONLY on the following NTA NEET 2025 topics: {topics}. 
+
+Ensure the output is a valid JSON array of objects.
+Keys for each object MUST be EXACTLY: 'question', 'optionA', 'optionB', 'optionC', 'optionD', 'correctOption', 'explanation'.
+Use "\\n" (escaped newline) inside strings if you need to separate text (e.g. for Match the following). Do NOT use raw unescaped newlines.
 """
 
+# सर्वात मोठा बदल: responseMimeType: "application/json" वापरले आहे, ज्यामुळे AI फक्त आणि फक्त JSON देतो.
 payload = {
     "contents": [{"parts": [{"text": prompt}]}],
-    "generationConfig": {"temperature": 0.8} # Temperature वाढवले आहे
+    "generationConfig": {
+        "temperature": 0.8,
+        "responseMimeType": "application/json" 
+    }
 }
+
 headers = {"Content-Type": "application/json"}
 response = requests.post(url, json=payload, headers=headers)
 data = response.json()
@@ -238,54 +238,51 @@ data = response.json()
 if 'candidates' in data:
     try:
         text_response = data['candidates'][0]['content']['parts'][0]['text']
-        text_response = text_response.replace('```json', '').replace('```', '').strip()
+        
+        # आता JSON Parsing 100% सक्सेस होईल कारण आपण application/json mime type मागितला आहे.
         questions = json.loads(text_response)
 
-        # भारतीय वेळ (IST) काढणे
         ist_time = datetime.utcnow() + timedelta(hours=5, minutes=30)
         timestamp = ist_time.strftime("%Y-%m-%d %H:%M:%S")
 
         saved_count = 0
         duplicate_count = 0
-        rows_to_add = [] # सर्व प्रश्न एकत्र साठवण्यासाठी लिस्ट (नवीन पद्धत)
+        rows_to_add = [] 
 
         print("गुगल शीटमध्ये डेटा सेव्ह करत आहे...")
         for q in questions:
             question_text = q.get('question', '').strip()
             
-            # प्रश्न आधीपासून शीटमध्ये आहे का ते तपासा
             if question_text in existing_questions_list:
                 duplicate_count += 1
                 continue 
 
-            # प्रश्न नवीन असेल तर लिस्टमध्ये जोडा
             q_id = f"{subject[:3].upper()}-{uuid.uuid4().hex[:6].upper()}"
             row = [
                 q_id,
                 subject,
                 chapter,
                 question_text,
-                q.get('optionA', ''),
-                q.get('optionB', ''),
-                q.get('optionC', ''),
-                q.get('optionD', ''),
-                q.get('correctOption', ''),
-                q.get('explanation', ''),
+                str(q.get('optionA', '')),
+                str(q.get('optionB', '')),
+                str(q.get('optionC', '')),
+                str(q.get('optionD', '')),
+                str(q.get('correctOption', '')),
+                str(q.get('explanation', '')),
                 timestamp
             ]
             rows_to_add.append(row)
+            existing_questions_list.append(question_text) # जेणेकरून एकाच बॅचमध्ये डुप्लिकेट येणार नाहीत
             saved_count += 1
             
-        # लूप संपल्यानंतर सर्व प्रश्न एकाच वेळी गुगल शीटमध्ये सेव्ह करणे (FAST)
         if len(rows_to_add) > 0:
             sheet.append_rows(rows_to_add)
             print(f"यशस्वी! {saved_count} नवीन प्रश्न जोडले गेले. ({duplicate_count} डुप्लिकेट प्रश्न वगळले).")
         else:
-            print("काहीही नवीन प्रश्न नाहीत.")
+            print("काहीही नवीन प्रश्न नाहीत. (सर्व डुप्लिकेट होते)")
 
     except Exception as e:
         print(f"Error parsing JSON: {e}")
-        # जर AI ने चुकीचा फॉरमॅट पाठवला, तर तो इथे दिसेल
         print("AI ने पाठवलेला डेटा:", text_response if 'text_response' in locals() else "Unknown")
 else:
     print("अंतिम API Error:", data)
