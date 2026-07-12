@@ -1,4 +1,3 @@
-from collections import Counter
 import os
 import json
 import ast
@@ -8,11 +7,11 @@ import requests
 import random
 import uuid
 from datetime import datetime, timedelta
-import re  # <--- [नवीन बदल] LaTeX चे फॉर्म्युले सुरक्षित करण्यासाठी
+from collections import Counter 
 
 # API Keys आणि Secrets
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
-GROQ_API_KEY = os.environ.get("GROQ_API_KEY") # नवीन Groq API Key
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY") 
 SHEET_ID = os.environ.get("SHEET_ID")
 GCP_CRED_JSON = os.environ.get("GCP_CREDENTIALS")
 
@@ -23,13 +22,15 @@ creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
 client = gspread.authorize(creds)
 sheet = client.open_by_key(SHEET_ID).sheet1
 
-# गुगल शीटमधील आधीचे सर्व प्रश्न वाचून घेणे (डुप्लिकेट टाळण्यासाठी)
+# गुगल शीटमधील आधीचे सर्व प्रश्न आणि चॅप्टर्स वाचून घेणे
 try:
     existing_questions_list = sheet.col_values(4) 
+    existing_chapters_list = sheet.col_values(3) 
 except:
     existing_questions_list = []
+    existing_chapters_list = []
 
-# २. NEET चा संपूर्ण सिलॅबस (Physics, Chemistry, Botany, Zoology) सविस्तर Topics सह
+# २. NEET चा संपूर्ण सिलॅबस 
 syllabus = [
     # --- PHYSICS ---
     {"subject": "Physics", "chapter": "Physics and Measurement", "topics": "Units of measurements, System of Units, SI Units, fundamental and derived units, least count, significant figures, Errors in measurements, Dimensions of Physics quantities, dimensional analysis."},
@@ -124,17 +125,12 @@ syllabus = [
     {"subject": "Zoology", "chapter": "Biotechnology: Principles and Processes", "topics": "Principles and process of Biotechnology, Genetic engineering (Recombinant DNA technology)."},
     {"subject": "Zoology", "chapter": "Biotechnology and Its Applications", "topics": "Application of Biotechnology in health and agriculture, Human insulin and vaccine production, gene therapy, Genetically modified organisms (Bt crops), Transgenic Animals, Biosafety issues (Biopiracy and patents)."}
 ]
+
 # ==========================================
 # 🚀 स्मार्ट ट्रॅकिंग सिस्टीम (Covered vs Remaining)
 # ==========================================
-try:
-    existing_chapters_list = sheet.col_values(3) # कॉलम 3 मध्ये चॅप्टरचे नाव असते
-except:
-    existing_chapters_list = []
-
-# प्रत्येक चॅप्टरचे किती प्रश्न शीटमध्ये आहेत ते मोजणे (Header सोडून)
 chapter_counts = Counter(existing_chapters_list[1:]) 
-TARGET_QUESTIONS_PER_CHAPTER = 100 # एका चॅप्टरचे किती प्रश्न बनवायचे आहेत?
+TARGET_QUESTIONS_PER_CHAPTER = 100 
 
 remaining_syllabus = []
 for topic in syllabus:
@@ -148,39 +144,9 @@ print(f"📊 डॅशबोर्ड अपडेट: एकूण चॅप्
 
 if not remaining_syllabus:
     print("🎉 अभिनंदन! सर्व चॅप्टर्सचे टार्गेट पूर्ण झाले आहे!")
-    exit() # स्क्रिप्ट थांबवा
+    exit() 
 
-# --- [सुधारित] चॅप्टरनुसार अचूक वेटेज (NEET 2019-2025 ट्रेंड्सनुसार) ---
-weightage_map = {
-    # ... (तुमचा आधीचा weightage_map तसाच ठेवा) ...
-}
-
-# प्रत्येक चॅप्टरला वेटेज लागू करणे (आता फक्त Remaining चॅप्टर्समधून)
-chapter_weights = []
-for topic in remaining_syllabus:
-    chap_name = topic["chapter"]
-    subj_name = topic["subject"]
-    
-    if chap_name in weightage_map:
-        chapter_weights.append(weightage_map[chap_name])
-    else:
-        if subj_name == "Zoology":
-            chapter_weights.append(5) 
-        elif subj_name == "Botany":
-            chapter_weights.append(4)
-        else:
-            chapter_weights.append(3)
-
-# वेटेजनुसार चॅप्टर निवडला जाईल
-selected_topic = random.choices(remaining_syllabus, weights=chapter_weights, k=1)[0]
-subject = selected_topic["subject"]
-chapter = selected_topic["chapter"]
-topics = selected_topic["topics"] 
-
-current_q_count = chapter_counts.get(chapter, 0)
-print(f"आजचा विषय: {subject} - {chapter} | (आतापर्यंत {current_q_count}/{TARGET_QUESTIONS_PER_CHAPTER} प्रश्न कव्हर झाले आहेत)")
-
-# --- [सुधारित] चॅप्टरनुसार अचूक वेटेज (NEET 2019-2025 ट्रेंड्सनुसार) ---
+# --- चॅप्टरनुसार अचूक वेटेज (NEET 2019-2025 ट्रेंड्सनुसार) ---
 weightage_map = {
     # --- BOTANY (High Yield) ---
     "Molecular Basis of Inheritance": 10,
@@ -215,37 +181,30 @@ weightage_map = {
     "Hydrocarbons": 6
 }
 
-# प्रत्येक चॅप्टरला वेटेज लागू करणे (Botany आणि Zoology वेगळे केले)
+# प्रत्येक चॅप्टरला वेटेज लागू करणे (आता फक्त Remaining चॅप्टर्समधून)
 chapter_weights = []
-for topic in syllabus:
+for topic in remaining_syllabus:
     chap_name = topic["chapter"]
     subj_name = topic["subject"]
     
-    # जर चॅप्टर मॅपमध्ये असेल तर ते घ्या
     if chap_name in weightage_map:
         chapter_weights.append(weightage_map[chap_name])
     else:
-        # नसेल तर विषयानुसार डीफॉल्ट वेटेज (Zoology/Botany ला थोडे जास्त)
         if subj_name == "Zoology":
             chapter_weights.append(5) 
         elif subj_name == "Botany":
             chapter_weights.append(4)
         else:
             chapter_weights.append(3)
-# वेटेजनुसार (Weighted Random Selection) चॅप्टर निवडला जाईल
-selected_topic = random.choices(syllabus, weights=chapter_weights, k=1)[0]
+
+# वेटेजनुसार चॅप्टर निवडला जाईल (फक्त Remaining मधून)
+selected_topic = random.choices(remaining_syllabus, weights=chapter_weights, k=1)[0]
 subject = selected_topic["subject"]
 chapter = selected_topic["chapter"]
 topics = selected_topic["topics"] 
 
-# प्रश्नांमध्ये व्हरायटी आणण्यासाठी रँडम प्रकार निवडणे
-# प्रश्नांमध्ये व्हरायटी आणण्यासाठी रँडम काठिण्य पातळी निवडणे
-difficulties = ["Easy", "Medium", "Hard", "Advanced conceptual"]
-selected_difficulty = random.choice(difficulties)
-
-print(f"आजचा विषय: {subject} - {chapter} | काठिण्य: NEET Pattern | प्रकार: Bloom's Taxonomy Mix")
-
-import ast # <--- सर्वात वर जिथे तुम्ही import json लिहिले आहे, तिथे ही ओळ ऍड करायला विसरू नका.
+current_q_count = chapter_counts.get(chapter, 0)
+print(f"आजचा विषय: {subject} - {chapter} | (आतापर्यंत {current_q_count}/{TARGET_QUESTIONS_PER_CHAPTER} प्रश्न कव्हर झाले आहेत)")
 
 # ४. प्रश्न मागवणे (अचूक प्रॉम्प्ट - NEET Pattern, Bloom's Taxonomy, Mixed Types, LaTeX, Quality Score)
 prompt = f"""Generate exactly 20 UNIQUE multiple choice questions for NEET exam on the Subject: '{subject}' 
@@ -356,7 +315,6 @@ if text_response:
         
         if start_idx != -1 and end_idx != -1:
             clean_string = text_response[start_idx:end_idx+1]
-            # JSON च्या ऐवजी ast.literal_eval वापरले (Invalid Escape एरर रोखण्यासाठी)
             questions = ast.literal_eval(clean_string)
         else:
             raise ValueError("AI च्या उत्तरात JSON Array सापडला नाही.")
@@ -373,9 +331,10 @@ if text_response:
         for q in questions:
             # १. Quality Score तपासणे
             scores = q.get('quality_score', {})
-            overall = scores.get('overall_score', 0)
+            # float() चा वापर केला आहे जेणेकरून AI ने स्कोअर टेक्स्ट फॉरमॅटमध्ये दिला तरी एरर येणार नाही
+            overall = float(scores.get('overall_score', 0))
             
-            # जर स्कोअर ९० पेक्षा कमी असेल (किंवा AI ने स्कोअर दिला नसेल), तर रिजेक्ट करा
+            # जर स्कोअर ९० पेक्षा कमी असेल तर रिजेक्ट करा
             if overall < 90:
                 print(f"❌ रिजेक्टेड (Score: {overall}): {q.get('question', '')[:40]}...")
                 rejected_count += 1
