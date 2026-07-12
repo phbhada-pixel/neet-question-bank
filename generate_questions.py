@@ -191,9 +191,9 @@ topics = selected_topic["topics"]
 difficulties = ["Easy", "Medium", "Hard", "Advanced conceptual"]
 selected_difficulty = random.choice(difficulties)
 
-print(f"आजचा विषय: {subject} - {chapter} | काठिण्य पातळी: NEET Standard Mix (Easy to Very Difficult) | प्रकार: Mixed")
+print(f"आजचा विषय: {subject} - {chapter} | काठिण्य: NEET Pattern | प्रकार: Bloom's Taxonomy Mix")
 
-# ४. प्रश्न मागवणे (अचूक प्रॉम्प्ट - NEET 10 Years Pattern, Mixed Types, LaTeX आणि Chemistry सपोर्टसह)
+# ४. प्रश्न मागवणे (अचूक प्रॉम्प्ट - NEET Pattern, Bloom's Taxonomy, Mixed Types, LaTeX आणि Chemistry सपोर्ट)
 prompt = f"""Generate exactly 20 UNIQUE multiple choice questions for NEET exam on the Subject: '{subject}' 
 and Chapter: '{chapter}'. STRICTLY base all your questions ONLY on the following NTA NEET 2025 topics: {topics}. 
 Make sure these are not the most common questions. Return ONLY a valid JSON array of objects. 
@@ -201,20 +201,18 @@ Keys must be exactly: 'question', 'optionA', 'optionB', 'optionC', 'optionD', 'c
 
 CRITICAL INSTRUCTION FOR DIFFICULTY LEVEL:
 Distribute the 20 questions strictly according to the previous 10 years NEET exam pattern:
-- 5 questions of 'Easy' difficulty (25%)
-- 9 questions of 'Medium' difficulty (45%)
-- 5 questions of 'Hard' difficulty (25%)
-- 1 question of 'Very Difficult / Advanced Conceptual' difficulty (5%)
+- 5 questions of 'Easy' difficulty
+- 9 questions of 'Medium' difficulty
+- 5 questions of 'Hard' difficulty
+- 1 question of 'Very Difficult / Advanced Conceptual' difficulty
 
-CRITICAL INSTRUCTION FOR QUESTION TYPES:
-I want a MIX of different question types distributed within the above difficulties. 
-Distribute the 20 questions approximately like this:
-- 4 'Assertion-Reason' type questions
-- 3 'Match the following' type questions
-- 4 'Statement based' type questions (e.g., Statement I is correct, Statement II is incorrect)
-- 4 'Direct conceptual' type questions
-- 3 'Numerical/Application based' type questions
-- 2 'Multi conceptual' type questions
+CRITICAL INSTRUCTION FOR BLOOM'S TAXONOMY & QUESTION TYPES:
+Design the 20 questions to target the following Bloom's Taxonomy cognitive levels, combining them with appropriate question types:
+- REMEMBER (4 questions): Direct recall of facts, definitions, standard values, or exceptions. (Use 'Direct conceptual' type)
+- UNDERSTAND (5 questions): Explaining ideas or concepts, identifying examples or graphs. (Use 'Statement based' or 'Direct conceptual' types)
+- APPLY (5 questions): Using formulas, applying rules to new situations, or calculating values. (Use 'Numerical/Application based' type)
+- ANALYSE (4 questions): Breaking down information, finding relationships, or identifying causes. (Use 'Assertion-Reason' or 'Match the following' types)
+- EVALUATE (2 questions): Judging the validity of complex statements combining multiple concepts. (Use 'Multi conceptual' type)
 
 IMPORTANT RULES:
 1. MATCH THE FOLLOWING: put Column I and Column II entirely within the 'question' key. 
