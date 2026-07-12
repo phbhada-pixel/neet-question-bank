@@ -1,5 +1,6 @@
 import os
 import json
+import ast
 import gspread
 from google.oauth2.service_account import Credentials
 import requests
@@ -188,11 +189,19 @@ selected_difficulty = random.choice(difficulties)
 
 print(f"आजचा विषय: {subject} - {chapter} | काठिण्य: NEET Pattern | प्रकार: Bloom's Taxonomy Mix")
 
-# ४. प्रश्न मागवणे (अचूक प्रॉम्प्ट - NEET Pattern, Bloom's Taxonomy, Mixed Types, LaTeX आणि Chemistry सपोर्ट)
+import ast # <--- सर्वात वर जिथे तुम्ही import json लिहिले आहे, तिथे ही ओळ ऍड करायला विसरू नका.
+
+# ४. प्रश्न मागवणे (अचूक प्रॉम्प्ट - NEET Pattern, Bloom's Taxonomy, Mixed Types, LaTeX, Quality Score)
 prompt = f"""Generate exactly 20 UNIQUE multiple choice questions for NEET exam on the Subject: '{subject}' 
 and Chapter: '{chapter}'. STRICTLY base all your questions ONLY on the following NTA NEET 2025 topics: {topics}. 
 Make sure these are not the most common questions. Return ONLY a valid JSON array of objects. 
-Keys must be exactly: 'question', 'optionA', 'optionB', 'optionC', 'optionD', 'correctOption', 'explanation'. 
+Keys must be exactly: 'question', 'optionA', 'optionB', 'optionC', 'optionD', 'correctOption', 'explanation', 
+and a 'quality_score' object with keys: 'difficulty_score', 'concept_coverage', 'language', 'neet_similarity', 'distractor_quality', 'overall_score'.
+
+CRITICAL INSTRUCTION FOR QUALITY SCORE:
+- Rate each parameter from 0-100 based on NEET standards.
+- Calculate 'overall_score' as the average of the 5 parameters.
+- If a question is too simple, has ambiguous options, or does not meet high NEET standards, give it a low score (< 80).
 
 CRITICAL INSTRUCTION FOR DIFFICULTY LEVEL:
 Distribute the 20 questions strictly according to the previous 10 years NEET exam pattern:
@@ -203,11 +212,11 @@ Distribute the 20 questions strictly according to the previous 10 years NEET exa
 
 CRITICAL INSTRUCTION FOR BLOOM'S TAXONOMY & QUESTION TYPES:
 Design the 20 questions to target the following Bloom's Taxonomy cognitive levels, combining them with appropriate question types:
-- REMEMBER (4 questions): Direct recall of facts, definitions, standard values, or exceptions. (Use 'Direct conceptual' type)
-- UNDERSTAND (5 questions): Explaining ideas or concepts, identifying examples or graphs. (Use 'Statement based' or 'Direct conceptual' types)
-- APPLY (5 questions): Using formulas, applying rules to new situations, or calculating values. (Use 'Numerical/Application based' type)
-- ANALYSE (4 questions): Breaking down information, finding relationships, or identifying causes. (Use 'Assertion-Reason' or 'Match the following' types)
-- EVALUATE (2 questions): Judging the validity of complex statements combining multiple concepts. (Use 'Multi conceptual' type)
+- REMEMBER (4 questions): Direct recall of facts, definitions, standard values. (Use 'Direct conceptual' type)
+- UNDERSTAND (5 questions): Explaining ideas or concepts. (Use 'Statement based' or 'Direct conceptual' types)
+- APPLY (5 questions): Using formulas, calculating values. (Use 'Numerical/Application based' type)
+- ANALYSE (4 questions): Finding relationships. (Use 'Assertion-Reason' or 'Match the following' types)
+- EVALUATE (2 questions): Judging validity of complex statements. (Use 'Multi conceptual' type)
 
 IMPORTANT RULES:
 1. MATCH THE FOLLOWING: put Column I and Column II entirely within the 'question' key. 
@@ -218,6 +227,7 @@ IMPORTANT RULES:
 4. CHEMISTRY FORMULAS: For organic structures use condensed plain text (e.g., CH3-CH2-OH). DO NOT draw ASCII structures.
 5. Output strictly valid JSON without any markdown formatting.
 """
+
 # ----------------- API FUNCTIONS (Google + Groq) -----------------
 def call_gemini():
     list_url = f"https://generativelanguage.googleapis.com/v1beta/models?key={GEMINI_API_KEY}"
@@ -280,52 +290,65 @@ except Exception as e:
         except Exception as e2:
             print(f"❌ Groq API सुद्धा फेल झाले: {e2}")
     else:
-        print("❌ Groq API Key उपलब्ध नाही. (कृपया GitHub Secrets मध्ये GROQ_API_KEY टाका).")
+        print("❌ Groq API Key उपलब्ध नाही.")
 
-import ast  # <--- हा नवीन import ऍड करा
-
-# ४. डेटा सेव्ह करणे (आता JSON ऐवजी ast.literal_eval वापरून, जो जास्त सुरक्षित आहे)
+# ५. डेटा सेव्ह करणे (Quality Score Filtering आणि ast सह)
 if text_response:
     try:
-        # १. फक्त '[' आणि ']' चा भाग काढणे
         start_idx = text_response.find('[')
         end_idx = text_response.rfind(']')
         
         if start_idx != -1 and end_idx != -1:
             clean_string = text_response[start_idx:end_idx+1]
-            
-            # --- [नवीन बदल] JSON ऐवजी ast वापरणे ---
-            # हे invalid escapes ला हाताळते आणि LaTeX ला नीट वाचते
+            # JSON च्या ऐवजी ast.literal_eval वापरले (Invalid Escape एरर रोखण्यासाठी)
             questions = ast.literal_eval(clean_string)
         else:
             raise ValueError("AI च्या उत्तरात JSON Array सापडला नाही.")
 
-        # २. आता डेटा सेव्ह करणे
         ist_time = datetime.utcnow() + timedelta(hours=5, minutes=30)
         timestamp = ist_time.strftime("%Y-%m-%d %H:%M:%S")
 
-        rows_to_add = []
+        saved_count = 0
+        duplicate_count = 0
+        rejected_count = 0
+        rows_to_add = [] 
+
+        print("गुगल शीटमध्ये डेटा सेव्ह करत आहे...")
         for q in questions:
-            # क्वालिटी स्कोअर चेक (Quality Score > 90)
+            # १. Quality Score तपासणे
             scores = q.get('quality_score', {})
             overall = scores.get('overall_score', 0)
             
-            # जर स्कोअर नसेल तर ९० माना (काहीवेळा AI स्कोअर द्यायला विसरतो)
-            if overall < 90 and overall != 0:
-                print(f"❌ रिजेक्टेड (Score: {overall})")
-                continue
-                
-            question_text = q.get('question', '').strip()
-            # ... (बाकीची प्रोसेस तशीच)
-            q_id = f"{subject[:3].upper()}-{uuid.uuid4().hex[:6].upper()}"
-            row = [q_id, subject, chapter, question_text, q.get('optionA', ''), q.get('optionB', ''), q.get('optionC', ''), q.get('optionD', ''), q.get('correctOption', ''), q.get('explanation', ''), timestamp]
-            rows_to_add.append(row)
+            # जर स्कोअर ९० पेक्षा कमी असेल (किंवा AI ने स्कोअर दिला नसेल), तर रिजेक्ट करा
+            if overall < 90:
+                print(f"❌ रिजेक्टेड (Score: {overall}): {q.get('question', '')[:40]}...")
+                rejected_count += 1
+                continue 
 
+            # २. प्रश्न रिपीटीशन तपासणे
+            question_text = q.get('question', '').strip()
+            if question_text in existing_questions_list:
+                duplicate_count += 1
+                continue 
+
+            # ३. रो (Row) तयार करणे
+            q_id = f"{subject[:3].upper()}-{uuid.uuid4().hex[:6].upper()}"
+            row = [
+                q_id, subject, chapter, question_text,
+                q.get('optionA', ''), q.get('optionB', ''),
+                q.get('optionC', ''), q.get('optionD', ''),
+                q.get('correctOption', ''), q.get('explanation', ''), timestamp
+            ]
+            rows_to_add.append(row)
+            saved_count += 1
+            print(f"✅ सिलेक्टेड (Score: {overall}): {q.get('question', '')[:40]}...")
+            
+        # ४. शीटमध्ये सेव्ह करणे
         if len(rows_to_add) > 0:
             sheet.append_rows(rows_to_add)
-            print(f"🎉 यशस्वी! {len(rows_to_add)} प्रश्न शीटमध्ये सेव्ह झाले.")
+            print(f"🎉 यशस्वी! {saved_count} नवीन प्रश्न जोडले गेले. (रिजेक्टेड: {rejected_count}, डुप्लिकेट: {duplicate_count}).")
         else:
-            print("कोणतेही प्रश्न सेव्ह झाले नाहीत.")
+            print(f"कोणतेही नवीन प्रश्न सेव्ह झाले नाहीत. (रिजेक्टेड: {rejected_count}, डुप्लिकेट: {duplicate_count}).")
 
     except Exception as e:
         print(f"Error parsing: {e}")
