@@ -191,21 +191,28 @@ topics = selected_topic["topics"]
 difficulties = ["Easy", "Medium", "Hard", "Advanced conceptual"]
 selected_difficulty = random.choice(difficulties)
 
-print(f"आजचा विषय: {subject} - {chapter} | काठिण्य पातळी: {selected_difficulty} | प्रकार: Mixed (सर्व प्रकारचे प्रश्न)")
+print(f"आजचा विषय: {subject} - {chapter} | काठिण्य पातळी: NEET Standard Mix (Easy to Very Difficult) | प्रकार: Mixed")
 
-# ४. प्रश्न मागवणे (अचूक प्रॉम्प्ट - Mixed Questions आणि LaTeX/Chemistry सपोर्टसह)
-prompt = f"""Generate exactly 20 UNIQUE and {selected_difficulty} level multiple choice questions for NEET exam on the Subject: '{subject}' 
+# ४. प्रश्न मागवणे (अचूक प्रॉम्प्ट - NEET 10 Years Pattern, Mixed Types, LaTeX आणि Chemistry सपोर्टसह)
+prompt = f"""Generate exactly 20 UNIQUE multiple choice questions for NEET exam on the Subject: '{subject}' 
 and Chapter: '{chapter}'. STRICTLY base all your questions ONLY on the following NTA NEET 2025 topics: {topics}. 
 Make sure these are not the most common questions. Return ONLY a valid JSON array of objects. 
 Keys must be exactly: 'question', 'optionA', 'optionB', 'optionC', 'optionD', 'correctOption', 'explanation'. 
 
+CRITICAL INSTRUCTION FOR DIFFICULTY LEVEL:
+Distribute the 20 questions strictly according to the previous 10 years NEET exam pattern:
+- 5 questions of 'Easy' difficulty (25%)
+- 9 questions of 'Medium' difficulty (45%)
+- 5 questions of 'Hard' difficulty (25%)
+- 1 question of 'Very Difficult / Advanced Conceptual' difficulty (5%)
+
 CRITICAL INSTRUCTION FOR QUESTION TYPES:
-I want a MIX of different question types. Do NOT generate all 20 questions of the same type. 
+I want a MIX of different question types distributed within the above difficulties. 
 Distribute the 20 questions approximately like this:
-- 5 'Assertion-Reason' type questions
-- 1 'Match the following' type questions
-- 2 'Statement based' type questions (e.g., Statement I is correct, Statement II is incorrect)
-- 6 'Direct conceptual' type questions
+- 4 'Assertion-Reason' type questions
+- 3 'Match the following' type questions
+- 4 'Statement based' type questions (e.g., Statement I is correct, Statement II is incorrect)
+- 4 'Direct conceptual' type questions
 - 3 'Numerical/Application based' type questions
 - 2 'Multi conceptual' type questions
 
