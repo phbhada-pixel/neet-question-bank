@@ -6,6 +6,7 @@ import requests
 import random
 import uuid
 from datetime import datetime, timedelta
+import re  # <--- [नवीन बदल] LaTeX चे फॉर्म्युले सुरक्षित करण्यासाठी
 
 # API Keys आणि Secrets
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
@@ -194,7 +195,7 @@ selected_type = random.choice(question_types)
 
 print(f"आजचा विषय: {subject} - {chapter} | प्रकार: {selected_difficulty}, {selected_type}")
 
-# ४. प्रश्न मागवणे (अचूक प्रॉम्प्ट - Double Escape LaTeX आणि Chemistry सपोर्टसह)
+# ४. प्रश्न मागवणे (अचूक प्रॉम्प्ट - LaTeX आणि Chemistry सपोर्टसह)
 prompt = f"""Generate 20 UNIQUE and {selected_difficulty} level '{selected_type}' multiple choice questions for NEET exam on the Subject: '{subject}' 
 and Chapter: '{chapter}'. STRICTLY base all your questions ONLY on the following NTA NEET 2025 topics: {topics}. 
 Make sure these are not the most common questions. Return ONLY a valid JSON array of objects. 
@@ -203,10 +204,13 @@ Keys must be exactly: 'question', 'optionA', 'optionB', 'optionC', 'optionD', 'c
 IMPORTANT RULES:
 1. MATCH THE FOLLOWING: put Column I and Column II entirely within the 'question' key. 
 2. LINE BREAKS: DO NOT use real line breaks in the text, use the escaped literal string '\\n' for new lines. 
-3. MATHEMATICAL FORMULAS (JSON ESCAPING): You MUST use LaTeX for math. However, since the output is JSON, you MUST double-escape ALL backslashes. For example, write \\\\( \\\\frac{{a}}{{b}} \\\\) instead of \\(\\frac{{a}}{{b}}\\), and write 180^\\\\circ instead of 180^\\circ.
-4. CHEMISTRY FORMULAS: If the subject is Chemistry and involves chemical structures, reactions, or organic functional groups, STRICTLY use 'Condensed Structural Formulas' in plain text (e.g., R-C(=O)-X, CH3-CH2-OH, (RCO)2O). DO NOT attempt to draw structures using ASCII art or image placeholders.
+3. MATHEMATICAL/SCIENCE FORMULAS: You MUST use LaTeX format. 
+   - Enclose inline formulas using a single $ sign (e.g., $180^\\circ$). 
+   - You MUST double-escape all LaTeX backslashes for valid JSON (e.g., use $\\\\frac{{a}}{{b}}$ instead of $\\frac{{a}}{{b}}$ and $180^\\\\circ$ instead of $180^\\circ$).
+4. CHEMISTRY FORMULAS: For organic structures use condensed plain text (e.g., CH3-CH2-OH). DO NOT draw ASCII structures.
 5. Output strictly valid JSON without any markdown formatting.
 """
+
 # ----------------- API FUNCTIONS (Google + Groq) -----------------
 def call_gemini():
     list_url = f"https://generativelanguage.googleapis.com/v1beta/models?key={GEMINI_API_KEY}"
@@ -279,6 +283,11 @@ if text_response:
         
         if start_idx != -1 and end_idx != -1:
             clean_json_string = text_response[start_idx:end_idx+1]
+            
+            # --- [नवीन बदल] MAGIC REGEX FIX ---
+            # हे AI ने दिलेल्या LaTeX च्या backslashes ला सुरक्षित करेल (उदा. \circ ला \\circ करेल)
+            clean_json_string = re.sub(r'\\(?![ntrbf"\\/])', r'\\\\', clean_json_string)
+            
             questions = json.loads(clean_json_string, strict=False)
         else:
             raise ValueError("AI च्या उत्तरात JSON Array '[ ... ]' सापडला नाही.")
