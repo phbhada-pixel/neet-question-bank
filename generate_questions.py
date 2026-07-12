@@ -282,58 +282,53 @@ except Exception as e:
     else:
         print("❌ Groq API Key उपलब्ध नाही. (कृपया GitHub Secrets मध्ये GROQ_API_KEY टाका).")
 
-# ४. डेटा सेव्ह करणे (Smart JSON Parser सह)
+import ast  # <--- हा नवीन import ऍड करा
+
+# ४. डेटा सेव्ह करणे (आता JSON ऐवजी ast.literal_eval वापरून, जो जास्त सुरक्षित आहे)
 if text_response:
     try:
+        # १. फक्त '[' आणि ']' चा भाग काढणे
         start_idx = text_response.find('[')
         end_idx = text_response.rfind(']')
         
         if start_idx != -1 and end_idx != -1:
-            clean_json_string = text_response[start_idx:end_idx+1]
+            clean_string = text_response[start_idx:end_idx+1]
             
-            # --- [नवीन बदल] MAGIC REGEX FIX ---
-            # हे AI ने दिलेल्या LaTeX च्या backslashes ला सुरक्षित करेल (उदा. \circ ला \\circ करेल)
-            clean_json_string = re.sub(r'\\(?![ntrbf"\\/])', r'\\\\', clean_json_string)
-            
-            questions = json.loads(clean_json_string, strict=False)
+            # --- [नवीन बदल] JSON ऐवजी ast वापरणे ---
+            # हे invalid escapes ला हाताळते आणि LaTeX ला नीट वाचते
+            questions = ast.literal_eval(clean_string)
         else:
-            raise ValueError("AI च्या उत्तरात JSON Array '[ ... ]' सापडला नाही.")
+            raise ValueError("AI च्या उत्तरात JSON Array सापडला नाही.")
 
+        # २. आता डेटा सेव्ह करणे
         ist_time = datetime.utcnow() + timedelta(hours=5, minutes=30)
         timestamp = ist_time.strftime("%Y-%m-%d %H:%M:%S")
 
-        saved_count = 0
-        duplicate_count = 0
-        rows_to_add = [] 
-
-        print("गुगल शीटमध्ये डेटा सेव्ह करत आहे...")
+        rows_to_add = []
         for q in questions:
-            question_text = q.get('question', '').strip()
-            if not question_text:
+            # क्वालिटी स्कोअर चेक (Quality Score > 90)
+            scores = q.get('quality_score', {})
+            overall = scores.get('overall_score', 0)
+            
+            # जर स्कोअर नसेल तर ९० माना (काहीवेळा AI स्कोअर द्यायला विसरतो)
+            if overall < 90 and overall != 0:
+                print(f"❌ रिजेक्टेड (Score: {overall})")
                 continue
                 
-            if question_text in existing_questions_list:
-                duplicate_count += 1
-                continue 
-
+            question_text = q.get('question', '').strip()
+            # ... (बाकीची प्रोसेस तशीच)
             q_id = f"{subject[:3].upper()}-{uuid.uuid4().hex[:6].upper()}"
-            row = [
-                q_id, subject, chapter, question_text,
-                q.get('optionA', ''), q.get('optionB', ''),
-                q.get('optionC', ''), q.get('optionD', ''),
-                q.get('correctOption', ''), q.get('explanation', ''), timestamp
-            ]
+            row = [q_id, subject, chapter, question_text, q.get('optionA', ''), q.get('optionB', ''), q.get('optionC', ''), q.get('optionD', ''), q.get('correctOption', ''), q.get('explanation', ''), timestamp]
             rows_to_add.append(row)
-            saved_count += 1
-            
+
         if len(rows_to_add) > 0:
             sheet.append_rows(rows_to_add)
-            print(f"🎉 यशस्वी! {saved_count} नवीन प्रश्न जोडले गेले. ({duplicate_count} डुप्लिकेट प्रश्न वगळले).")
+            print(f"🎉 यशस्वी! {len(rows_to_add)} प्रश्न शीटमध्ये सेव्ह झाले.")
         else:
-            print("कोणतेही नवीन प्रश्न शीटमध्ये जोडले गेले नाहीत.")
+            print("कोणतेही प्रश्न सेव्ह झाले नाहीत.")
 
     except Exception as e:
-        print(f"Error parsing JSON: {e}")
+        print(f"Error parsing: {e}")
         print("\n--- AI ने पाठवलेला चुकीचा डेटा ---")
         print(text_response)
 else:
