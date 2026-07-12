@@ -194,19 +194,20 @@ selected_type = random.choice(question_types)
 
 print(f"आजचा विषय: {subject} - {chapter} | प्रकार: {selected_difficulty}, {selected_type}")
 
-# ४. प्रश्न मागवणे (अचूक प्रॉम्प्ट - LaTeX सपोर्टसह)
+# ४. प्रश्न मागवणे (अचूक प्रॉम्प्ट - LaTeX आणि Chemistry सपोर्टसह)
 prompt = f"""Generate 20 UNIQUE and {selected_difficulty} level '{selected_type}' multiple choice questions for NEET exam on the Subject: '{subject}' 
 and Chapter: '{chapter}'. STRICTLY base all your questions ONLY on the following NTA NEET 2025 topics: {topics}. 
 Make sure these are not the most common questions. Return ONLY a valid JSON array of objects. 
 Keys must be exactly: 'question', 'optionA', 'optionB', 'optionC', 'optionD', 'correctOption', 'explanation'. 
 
 IMPORTANT RULES:
-1. If generating 'Match the following' questions, put Column I and Column II entirely within the 'question' key. 
-2. DO NOT use real line breaks in the text, use the escaped literal string '\\n' for new lines. 
+1. MATCH THE FOLLOWING: put Column I and Column II entirely within the 'question' key. 
+2. LINE BREAKS: DO NOT use real line breaks in the text, use the escaped literal string '\\n' for new lines. 
 3. MATHEMATICAL FORMULAS: You MUST use LaTeX format for all mathematical expressions (e.g., use \\(\\frac{{a}}{{b}}\\)). 
    - Enclose inline formulas in \\( ... \\). 
    - Do not use plain text for math equations.
-4. Output strictly valid JSON without any markdown formatting.
+4. CHEMISTRY FORMULAS: If the subject is Chemistry and involves chemical structures, reactions, or organic functional groups, STRICTLY use 'Condensed Structural Formulas' in plain text (e.g., R-C(=O)-X, CH3-CH2-OH, (RCO)2O). DO NOT attempt to draw structures using ASCII art or image placeholders.
+5. Output strictly valid JSON without any markdown formatting.
 """
 # ----------------- API FUNCTIONS (Google + Groq) -----------------
 def call_gemini():
