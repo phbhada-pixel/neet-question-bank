@@ -1,3 +1,4 @@
+from collections import Counter
 import os
 import json
 import ast
@@ -123,6 +124,61 @@ syllabus = [
     {"subject": "Zoology", "chapter": "Biotechnology: Principles and Processes", "topics": "Principles and process of Biotechnology, Genetic engineering (Recombinant DNA technology)."},
     {"subject": "Zoology", "chapter": "Biotechnology and Its Applications", "topics": "Application of Biotechnology in health and agriculture, Human insulin and vaccine production, gene therapy, Genetically modified organisms (Bt crops), Transgenic Animals, Biosafety issues (Biopiracy and patents)."}
 ]
+# ==========================================
+# 🚀 स्मार्ट ट्रॅकिंग सिस्टीम (Covered vs Remaining)
+# ==========================================
+try:
+    existing_chapters_list = sheet.col_values(3) # कॉलम 3 मध्ये चॅप्टरचे नाव असते
+except:
+    existing_chapters_list = []
+
+# प्रत्येक चॅप्टरचे किती प्रश्न शीटमध्ये आहेत ते मोजणे (Header सोडून)
+chapter_counts = Counter(existing_chapters_list[1:]) 
+TARGET_QUESTIONS_PER_CHAPTER = 100 # एका चॅप्टरचे किती प्रश्न बनवायचे आहेत?
+
+remaining_syllabus = []
+for topic in syllabus:
+    chap_name = topic["chapter"]
+    current_count = chapter_counts.get(chap_name, 0)
+    
+    if current_count < TARGET_QUESTIONS_PER_CHAPTER:
+        remaining_syllabus.append(topic)
+
+print(f"📊 डॅशबोर्ड अपडेट: एकूण चॅप्टर्स: {len(syllabus)} | उरलेले चॅप्टर्स (Remaining): {len(remaining_syllabus)}")
+
+if not remaining_syllabus:
+    print("🎉 अभिनंदन! सर्व चॅप्टर्सचे टार्गेट पूर्ण झाले आहे!")
+    exit() # स्क्रिप्ट थांबवा
+
+# --- [सुधारित] चॅप्टरनुसार अचूक वेटेज (NEET 2019-2025 ट्रेंड्सनुसार) ---
+weightage_map = {
+    # ... (तुमचा आधीचा weightage_map तसाच ठेवा) ...
+}
+
+# प्रत्येक चॅप्टरला वेटेज लागू करणे (आता फक्त Remaining चॅप्टर्समधून)
+chapter_weights = []
+for topic in remaining_syllabus:
+    chap_name = topic["chapter"]
+    subj_name = topic["subject"]
+    
+    if chap_name in weightage_map:
+        chapter_weights.append(weightage_map[chap_name])
+    else:
+        if subj_name == "Zoology":
+            chapter_weights.append(5) 
+        elif subj_name == "Botany":
+            chapter_weights.append(4)
+        else:
+            chapter_weights.append(3)
+
+# वेटेजनुसार चॅप्टर निवडला जाईल
+selected_topic = random.choices(remaining_syllabus, weights=chapter_weights, k=1)[0]
+subject = selected_topic["subject"]
+chapter = selected_topic["chapter"]
+topics = selected_topic["topics"] 
+
+current_q_count = chapter_counts.get(chapter, 0)
+print(f"आजचा विषय: {subject} - {chapter} | (आतापर्यंत {current_q_count}/{TARGET_QUESTIONS_PER_CHAPTER} प्रश्न कव्हर झाले आहेत)")
 
 # --- [सुधारित] चॅप्टरनुसार अचूक वेटेज (NEET 2019-2025 ट्रेंड्सनुसार) ---
 weightage_map = {
