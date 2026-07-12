@@ -187,19 +187,27 @@ chapter = selected_topic["chapter"]
 topics = selected_topic["topics"] 
 
 # प्रश्नांमध्ये व्हरायटी आणण्यासाठी रँडम प्रकार निवडणे
+# प्रश्नांमध्ये व्हरायटी आणण्यासाठी रँडम काठिण्य पातळी निवडणे
 difficulties = ["Easy", "Medium", "Hard", "Advanced conceptual"]
-question_types = ["Assertion-Reason", "Statement based", "Match the following", "Direct conceptual", "Numerical/Application based", "Multi conceptual"]
-
 selected_difficulty = random.choice(difficulties)
-selected_type = random.choice(question_types)
 
-print(f"आजचा विषय: {subject} - {chapter} | प्रकार: {selected_difficulty}, {selected_type}")
+print(f"आजचा विषय: {subject} - {chapter} | काठिण्य पातळी: {selected_difficulty} | प्रकार: Mixed (सर्व प्रकारचे प्रश्न)")
 
-# ४. प्रश्न मागवणे (अचूक प्रॉम्प्ट - LaTeX आणि Chemistry सपोर्टसह)
-prompt = f"""Generate 20 UNIQUE and {selected_difficulty} level '{selected_type}' multiple choice questions for NEET exam on the Subject: '{subject}' 
+# ४. प्रश्न मागवणे (अचूक प्रॉम्प्ट - Mixed Questions आणि LaTeX/Chemistry सपोर्टसह)
+prompt = f"""Generate exactly 20 UNIQUE and {selected_difficulty} level multiple choice questions for NEET exam on the Subject: '{subject}' 
 and Chapter: '{chapter}'. STRICTLY base all your questions ONLY on the following NTA NEET 2025 topics: {topics}. 
 Make sure these are not the most common questions. Return ONLY a valid JSON array of objects. 
 Keys must be exactly: 'question', 'optionA', 'optionB', 'optionC', 'optionD', 'correctOption', 'explanation'. 
+
+CRITICAL INSTRUCTION FOR QUESTION TYPES:
+I want a MIX of different question types. Do NOT generate all 20 questions of the same type. 
+Distribute the 20 questions approximately like this:
+- 5 'Assertion-Reason' type questions
+- 1 'Match the following' type questions
+- 2 'Statement based' type questions (e.g., Statement I is correct, Statement II is incorrect)
+- 6 'Direct conceptual' type questions
+- 3 'Numerical/Application based' type questions
+- 2 'Multi conceptual' type questions
 
 IMPORTANT RULES:
 1. MATCH THE FOLLOWING: put Column I and Column II entirely within the 'question' key. 
@@ -210,7 +218,6 @@ IMPORTANT RULES:
 4. CHEMISTRY FORMULAS: For organic structures use condensed plain text (e.g., CH3-CH2-OH). DO NOT draw ASCII structures.
 5. Output strictly valid JSON without any markdown formatting.
 """
-
 # ----------------- API FUNCTIONS (Google + Groq) -----------------
 def call_gemini():
     list_url = f"https://generativelanguage.googleapis.com/v1beta/models?key={GEMINI_API_KEY}"
