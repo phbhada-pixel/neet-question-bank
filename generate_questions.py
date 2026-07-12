@@ -123,63 +123,58 @@ syllabus = [
     {"subject": "Zoology", "chapter": "Biotechnology and Its Applications", "topics": "Application of Biotechnology in health and agriculture, Human insulin and vaccine production, gene therapy, Genetically modified organisms (Bt crops), Transgenic Animals, Biosafety issues (Biopiracy and patents)."}
 ]
 
-# --- चॅप्टरनुसार वेटेज (Weightage) ठरवणे ---
+# --- [सुधारित] चॅप्टरनुसार अचूक वेटेज (NEET 2019-2025 ट्रेंड्सनुसार) ---
 weightage_map = {
-    # Biology - Highest Weightage (7-10)
-    "Principles of Inheritance and Variation": 10,
+    # --- BOTANY (High Yield) ---
     "Molecular Basis of Inheritance": 10,
-    "Digestion and Absorption": 9,
-    "Breathing and Exchange of Gases": 9,
-    "Body Fluids and Circulation": 9,
-    "Excretory Products and Their Elimination": 9,
-    "Locomotion and Movement": 9,
-    "Neural Control and Coordination": 9,
-    "Chemical Coordination and Integration": 9,
-    "Biotechnology: Principles and Processes": 8,
-    "Biotechnology and Its Applications": 8,
-    "Organisms and Populations": 8,
-    "Ecosystem": 8,
-    "Biodiversity and Conservation": 8,
-    "Environmental Issues": 8,
-    "Evolution": 8,
-    "Sexual Reproduction in Flowering Plants": 7,
-    "Cell: The Unit of Life": 7,
+    "Cell Cycle and Cell Division": 9,
+    "Principles of Inheritance and Variation": 9,
+    "Morphology of Flowering Plants": 7,
+    "Plant Growth and Development": 6,
+    "Plant Kingdom": 5,
+    "Anatomy of Flowering Plants": 6,
     
-    # Physics - High Weightage (6-8)
-    "Current Electricity": 8,
+    # --- ZOOLOGY (High Yield) ---
+    "Biotechnology: Principles and Processes": 10,
+    "Biomolecules": 9,
+    "Animal Kingdom": 9,
+    "Structural Organisation in Animals": 8,
+    "Human Reproduction": 7,
+    "Reproductive Health": 7,
+    "Human Health and Disease": 6,
+    
+    # --- PHYSICS (High Yield) ---
+    "Current Electricity": 9,
     "Electrostatics": 7,
     "Optics (Ray Optics and Wave Optics)": 7,
-    "System of Particles and Rotational Motion": 7,
-    "Thermodynamics": 6, 
-    "Electronic Devices (Semiconductor Electronics)": 6,
-    "Dual Nature of Matter and Radiation": 6,
-    "Atoms and Nuclei": 6,
-
-    # Chemistry - High Weightage (6-7)
+    "Semiconductor Electronics": 6,
+    "Thermodynamics": 6,
+    
+    # --- CHEMISTRY (High Yield) ---
+    "Aldehydes, Ketones and Carboxylic Acids": 8,
     "Chemical Bonding and Molecular Structure": 7,
-    "Organic Chemistry – Some Basic Principles and Techniques": 7,
+    "Equilibrium": 6,
     "Coordination Compounds": 6,
-    "Aldehydes, Ketones and Carboxylic Acids": 6,
-    "Equilibrium": 5,
-    "d- and f-Block Elements": 5,
-    "Chemical Kinetics": 5,
-    "Electrochemistry": 5
+    "Hydrocarbons": 6
 }
 
-# प्रत्येक चॅप्टरला वेटेज लागू करणे
+# प्रत्येक चॅप्टरला वेटेज लागू करणे (Botany आणि Zoology वेगळे केले)
 chapter_weights = []
 for topic in syllabus:
     chap_name = topic["chapter"]
     subj_name = topic["subject"]
     
+    # जर चॅप्टर मॅपमध्ये असेल तर ते घ्या
     if chap_name in weightage_map:
         chapter_weights.append(weightage_map[chap_name])
     else:
-        if subj_name in ["Botany", "Zoology"]:
-            chapter_weights.append(4) 
+        # नसेल तर विषयानुसार डीफॉल्ट वेटेज (Zoology/Botany ला थोडे जास्त)
+        if subj_name == "Zoology":
+            chapter_weights.append(5) 
+        elif subj_name == "Botany":
+            chapter_weights.append(4)
         else:
             chapter_weights.append(3)
-
 # वेटेजनुसार (Weighted Random Selection) चॅप्टर निवडला जाईल
 selected_topic = random.choices(syllabus, weights=chapter_weights, k=1)[0]
 subject = selected_topic["subject"]
