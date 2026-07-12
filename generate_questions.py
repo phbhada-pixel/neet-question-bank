@@ -7,7 +7,9 @@ import random
 import uuid
 from datetime import datetime, timedelta
 
+# API Keys आणि Secrets
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY") # नवीन Groq API Key
 SHEET_ID = os.environ.get("SHEET_ID")
 GCP_CRED_JSON = os.environ.get("GCP_CREDENTIALS")
 
@@ -185,37 +187,14 @@ topics = selected_topic["topics"]
 
 # प्रश्नांमध्ये व्हरायटी आणण्यासाठी रँडम प्रकार निवडणे
 difficulties = ["Easy", "Medium", "Hard", "Advanced conceptual"]
-question_types = ["Assertion-Reason", "Statement based", "Match the following", "Direct conceptual", "Numerical/Application based","Multi conceptual"]
+question_types = ["Assertion-Reason", "Statement based", "Match the following", "Direct conceptual", "Numerical/Application based", "Multi conceptual"]
 
 selected_difficulty = random.choice(difficulties)
 selected_type = random.choice(question_types)
 
 print(f"आजचा विषय: {subject} - {chapter} | प्रकार: {selected_difficulty}, {selected_type}")
 
-# ३. गुगलला चालू मॉडेल विचारणे
-list_url = f"https://generativelanguage.googleapis.com/v1beta/models?key={GEMINI_API_KEY}"
-list_response = requests.get(list_url)
-models_data = list_response.json()
-
-valid_model_name = None
-if 'models' in models_data:
-    for model in models_data['models']:
-        if 'generateContent' in model.get('supportedGenerationMethods', []) and 'flash' in model['name']:
-            valid_model_name = model['name']
-            break
-    if not valid_model_name:
-        for model in models_data['models']:
-            if 'generateContent' in model.get('supportedGenerationMethods', []):
-                valid_model_name = model['name']
-                break
-
-if not valid_model_name:
-    print("Error: योग्य मॉडेल सापडला नाही!")
-    exit()
-
-# ४. प्रश्न मागवणे (अचूक प्रॉम्प्ट)
-url = f"https://generativelanguage.googleapis.com/v1beta/{valid_model_name}:generateContent?key={GEMINI_API_KEY}"
-
+# ३. API ला पाठवण्यासाठी कडक प्रॉम्प्ट
 prompt = f"""Generate 20 UNIQUE and {selected_difficulty} level '{selected_type}' multiple choice questions for NEET exam on the Subject: '{subject}' 
 and Chapter: '{chapter}'. STRICTLY base all your questions ONLY on the following NTA NEET 2025 topics: {topics}. 
 Make sure these are not the most common questions. Return ONLY a valid JSON array of objects. 
@@ -223,20 +202,73 @@ Keys must be exactly: 'question', 'optionA', 'optionB', 'optionC', 'optionD', 'c
 IMPORTANT: If generating 'Match the following' questions, put Column I and Column II entirely within the 'question' key. DO NOT use real line breaks in the text, use the escaped literal string '\\n' for new lines. Output strictly valid JSON without any markdown formatting.
 """
 
-payload = {
-    "contents": [{"parts": [{"text": prompt}]}],
-    "generationConfig": {"temperature": 0.8}
-}
-headers = {"Content-Type": "application/json"}
-response = requests.post(url, json=payload, headers=headers)
-data = response.json()
+# ----------------- API FUNCTIONS (Google + Groq) -----------------
+def call_gemini():
+    list_url = f"https://generativelanguage.googleapis.com/v1beta/models?key={GEMINI_API_KEY}"
+    models_data = requests.get(list_url).json()
+    valid_model_name = "models/gemini-1.5-flash" 
+    
+    if 'models' in models_data:
+        for model in models_data['models']:
+            if 'generateContent' in model.get('supportedGenerationMethods', []) and 'flash' in model['name']:
+                valid_model_name = model['name']
+                break
 
-# ५. गुगल शीटमध्ये डुप्लिकेट तपासून आणि वेळेसह सेव्ह करणे (NEW SMART PARSER)
-if 'candidates' in data:
-    try:
-        text_response = data['candidates'][0]['content']['parts'][0]['text']
+    url = f"https://generativelanguage.googleapis.com/v1beta/{valid_model_name}:generateContent?key={GEMINI_API_KEY}"
+    payload = {"contents": [{"parts": [{"text": prompt}]}], "generationConfig": {"temperature": 0.8}}
+    headers = {"Content-Type": "application/json"}
+    response = requests.post(url, json=payload, headers=headers)
+    
+    if response.status_code != 200:
+        raise Exception(f"HTTP {response.status_code}: {response.text}")
         
-        # --- SUPER ROBUST JSON PARSER ---
+    data = response.json()
+    if 'candidates' in data:
+        return data['candidates'][0]['content']['parts'][0]['text']
+    else:
+        raise Exception(f"Gemini API Response Error: {data}")
+
+def call_groq():
+    url = "https://api.groq.com/openai/v1/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {GROQ_API_KEY}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "model": "llama3-8b-8192", 
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": 0.8
+    }
+    response = requests.post(url, json=payload, headers=headers)
+    
+    if response.status_code != 200:
+        raise Exception(f"HTTP {response.status_code}: {response.text}")
+        
+    data = response.json()
+    return data['choices'][0]['message']['content']
+
+# ----------------- FALLBACK MECHANISM -----------------
+text_response = None
+
+try:
+    print("१. Google Gemini कडून प्रश्न मागत आहे...")
+    text_response = call_gemini()
+    print("✅ Gemini ने यशस्वरित्या प्रश्न पाठवले!")
+except Exception as e:
+    print(f"⚠️ Gemini API बिझी आहे किंवा एरर आला: {e}")
+    if GROQ_API_KEY:
+        print("२. Backup API (Groq) कडून प्रश्न मागत आहे...")
+        try:
+            text_response = call_groq()
+            print("✅ Groq ने यशस्वरित्या प्रश्न पाठवले!")
+        except Exception as e2:
+            print(f"❌ Groq API सुद्धा फेल झाले: {e2}")
+    else:
+        print("❌ Groq API Key उपलब्ध नाही. (कृपया GitHub Secrets मध्ये GROQ_API_KEY टाका).")
+
+# ४. डेटा सेव्ह करणे (Smart JSON Parser सह)
+if text_response:
+    try:
         start_idx = text_response.find('[')
         end_idx = text_response.rfind(']')
         
@@ -245,9 +277,7 @@ if 'candidates' in data:
             questions = json.loads(clean_json_string, strict=False)
         else:
             raise ValueError("AI च्या उत्तरात JSON Array '[ ... ]' सापडला नाही.")
-        # --------------------------------
 
-        # भारतीय वेळ (IST) काढणे
         ist_time = datetime.utcnow() + timedelta(hours=5, minutes=30)
         timestamp = ist_time.strftime("%Y-%m-%d %H:%M:%S")
 
@@ -258,44 +288,32 @@ if 'candidates' in data:
         print("गुगल शीटमध्ये डेटा सेव्ह करत आहे...")
         for q in questions:
             question_text = q.get('question', '').strip()
-            
-            # जर चुकून रिकामा प्रश्न आला असेल तर तो टाळणे
             if not question_text:
                 continue
                 
-            # प्रश्न आधीपासून शीटमध्ये आहे का ते तपासा
             if question_text in existing_questions_list:
                 duplicate_count += 1
                 continue 
 
             q_id = f"{subject[:3].upper()}-{uuid.uuid4().hex[:6].upper()}"
             row = [
-                q_id,
-                subject,
-                chapter,
-                question_text,
-                q.get('optionA', ''),
-                q.get('optionB', ''),
-                q.get('optionC', ''),
-                q.get('optionD', ''),
-                q.get('correctOption', ''),
-                q.get('explanation', ''),
-                timestamp
+                q_id, subject, chapter, question_text,
+                q.get('optionA', ''), q.get('optionB', ''),
+                q.get('optionC', ''), q.get('optionD', ''),
+                q.get('correctOption', ''), q.get('explanation', ''), timestamp
             ]
             rows_to_add.append(row)
             saved_count += 1
             
-        # सर्व प्रश्न एकाच वेळी गुगल शीटमध्ये सेव्ह करणे
         if len(rows_to_add) > 0:
             sheet.append_rows(rows_to_add)
-            print(f"यशस्वी! {saved_count} नवीन प्रश्न जोडले गेले. ({duplicate_count} डुप्लिकेट प्रश्न वगळले).")
+            print(f"🎉 यशस्वी! {saved_count} नवीन प्रश्न जोडले गेले. ({duplicate_count} डुप्लिकेट प्रश्न वगळले).")
         else:
-            print("कोणतेही नवीन प्रश्न शीटमध्ये जोडले गेले नाहीत. (कदाचित सर्व प्रश्न आधीच शीटमध्ये होते).")
+            print("कोणतेही नवीन प्रश्न शीटमध्ये जोडले गेले नाहीत.")
 
     except Exception as e:
         print(f"Error parsing JSON: {e}")
-        print("\n--- AI ने पाठवलेला चुकीचा डेटा खालीलप्रमाणे आहे ---")
-        print(text_response if 'text_response' in locals() else "माहिती उपलब्ध नाही.")
-        print("--------------------------------------------------")
+        print("\n--- AI ने पाठवलेला चुकीचा डेटा ---")
+        print(text_response)
 else:
-    print("अंतिम API Error:", data)
+    print("कोणत्याही API कडून उत्तर मिळाले नाही.")
