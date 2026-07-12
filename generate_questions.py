@@ -24,7 +24,7 @@ try:
 except:
     existing_questions_list = []
 
-# २. NEET चा संपूर्ण सिलॅबस
+# २. NEET चा संपूर्ण सिलॅबस (Physics, Chemistry, Botany, Zoology) सविस्तर Topics सह
 syllabus = [
     # --- PHYSICS ---
     {"subject": "Physics", "chapter": "Physics and Measurement", "topics": "Units of measurements, System of Units, SI Units, fundamental and derived units, least count, significant figures, Errors in measurements, Dimensions of Physics quantities, dimensional analysis."},
@@ -163,10 +163,12 @@ weightage_map = {
     "Electrochemistry": 5
 }
 
+# प्रत्येक चॅप्टरला वेटेज लागू करणे
 chapter_weights = []
 for topic in syllabus:
     chap_name = topic["chapter"]
     subj_name = topic["subject"]
+    
     if chap_name in weightage_map:
         chapter_weights.append(weightage_map[chap_name])
     else:
@@ -175,15 +177,15 @@ for topic in syllabus:
         else:
             chapter_weights.append(3)
 
+# वेटेजनुसार (Weighted Random Selection) चॅप्टर निवडला जाईल
 selected_topic = random.choices(syllabus, weights=chapter_weights, k=1)[0]
 subject = selected_topic["subject"]
 chapter = selected_topic["chapter"]
 topics = selected_topic["topics"] 
 
+# प्रश्नांमध्ये व्हरायटी आणण्यासाठी रँडम प्रकार निवडणे
 difficulties = ["Easy", "Medium", "Hard", "Advanced conceptual"]
-question_types = [#"Assertion-Reason", "Statement based", 
-                  "Match the following"
-                  #"Direct conceptual", "Numerical/Application based"]
+question_types = ["Assertion-Reason", "Statement based", "Match the following", "Direct conceptual", "Numerical/Application based"]
 
 selected_difficulty = random.choice(difficulties)
 selected_type = random.choice(question_types)
@@ -211,39 +213,41 @@ if not valid_model_name:
     print("Error: योग्य मॉडेल सापडला नाही!")
     exit()
 
-# ४. प्रश्न मागवणे (NEET 2025 ची सविस्तर सूचना + Topics)
+# ४. प्रश्न मागवणे (अचूक प्रॉम्प्ट)
 url = f"https://generativelanguage.googleapis.com/v1beta/{valid_model_name}:generateContent?key={GEMINI_API_KEY}"
 
-# Prompt मध्ये थोडा बदल केला आहे ज्यामुळे AI प्रॉपर JSON schema समजून घेईल.
 prompt = f"""Generate 20 UNIQUE and {selected_difficulty} level '{selected_type}' multiple choice questions for NEET exam on the Subject: '{subject}' 
 and Chapter: '{chapter}'. STRICTLY base all your questions ONLY on the following NTA NEET 2025 topics: {topics}. 
-
-Ensure the output is a valid JSON array of objects.
-Keys for each object MUST be EXACTLY: 'question', 'optionA', 'optionB', 'optionC', 'optionD', 'correctOption', 'explanation'.
-Use "\\n" (escaped newline) inside strings if you need to separate text (e.g. for Match the following). Do NOT use raw unescaped newlines.
+Make sure these are not the most common questions. Return ONLY a valid JSON array of objects. 
+Keys must be exactly: 'question', 'optionA', 'optionB', 'optionC', 'optionD', 'correctOption', 'explanation'. 
+IMPORTANT: If generating 'Match the following' questions, put Column I and Column II entirely within the 'question' key. DO NOT use real line breaks in the text, use the escaped literal string '\\n' for new lines. Output strictly valid JSON without any markdown formatting.
 """
 
-# सर्वात मोठा बदल: responseMimeType: "application/json" वापरले आहे, ज्यामुळे AI फक्त आणि फक्त JSON देतो.
 payload = {
     "contents": [{"parts": [{"text": prompt}]}],
-    "generationConfig": {
-        "temperature": 0.8,
-        "responseMimeType": "application/json" 
-    }
+    "generationConfig": {"temperature": 0.8}
 }
-
 headers = {"Content-Type": "application/json"}
 response = requests.post(url, json=payload, headers=headers)
 data = response.json()
 
-# ५. गुगल शीटमध्ये डुप्लिकेट तपासून आणि वेळेसह सेव्ह करणे
+# ५. गुगल शीटमध्ये डुप्लिकेट तपासून आणि वेळेसह सेव्ह करणे (NEW SMART PARSER)
 if 'candidates' in data:
     try:
         text_response = data['candidates'][0]['content']['parts'][0]['text']
         
-        # आता JSON Parsing 100% सक्सेस होईल कारण आपण application/json mime type मागितला आहे.
-        questions = json.loads(text_response)
+        # --- SUPER ROBUST JSON PARSER ---
+        start_idx = text_response.find('[')
+        end_idx = text_response.rfind(']')
+        
+        if start_idx != -1 and end_idx != -1:
+            clean_json_string = text_response[start_idx:end_idx+1]
+            questions = json.loads(clean_json_string, strict=False)
+        else:
+            raise ValueError("AI च्या उत्तरात JSON Array '[ ... ]' सापडला नाही.")
+        # --------------------------------
 
+        # भारतीय वेळ (IST) काढणे
         ist_time = datetime.utcnow() + timedelta(hours=5, minutes=30)
         timestamp = ist_time.strftime("%Y-%m-%d %H:%M:%S")
 
@@ -255,6 +259,11 @@ if 'candidates' in data:
         for q in questions:
             question_text = q.get('question', '').strip()
             
+            # जर चुकून रिकामा प्रश्न आला असेल तर तो टाळणे
+            if not question_text:
+                continue
+                
+            # प्रश्न आधीपासून शीटमध्ये आहे का ते तपासा
             if question_text in existing_questions_list:
                 duplicate_count += 1
                 continue 
@@ -265,26 +274,28 @@ if 'candidates' in data:
                 subject,
                 chapter,
                 question_text,
-                str(q.get('optionA', '')),
-                str(q.get('optionB', '')),
-                str(q.get('optionC', '')),
-                str(q.get('optionD', '')),
-                str(q.get('correctOption', '')),
-                str(q.get('explanation', '')),
+                q.get('optionA', ''),
+                q.get('optionB', ''),
+                q.get('optionC', ''),
+                q.get('optionD', ''),
+                q.get('correctOption', ''),
+                q.get('explanation', ''),
                 timestamp
             ]
             rows_to_add.append(row)
-            existing_questions_list.append(question_text) # जेणेकरून एकाच बॅचमध्ये डुप्लिकेट येणार नाहीत
             saved_count += 1
             
+        # सर्व प्रश्न एकाच वेळी गुगल शीटमध्ये सेव्ह करणे
         if len(rows_to_add) > 0:
             sheet.append_rows(rows_to_add)
             print(f"यशस्वी! {saved_count} नवीन प्रश्न जोडले गेले. ({duplicate_count} डुप्लिकेट प्रश्न वगळले).")
         else:
-            print("काहीही नवीन प्रश्न नाहीत. (सर्व डुप्लिकेट होते)")
+            print("कोणतेही नवीन प्रश्न शीटमध्ये जोडले गेले नाहीत. (कदाचित सर्व प्रश्न आधीच शीटमध्ये होते).")
 
     except Exception as e:
         print(f"Error parsing JSON: {e}")
-        print("AI ने पाठवलेला डेटा:", text_response if 'text_response' in locals() else "Unknown")
+        print("\n--- AI ने पाठवलेला चुकीचा डेटा खालीलप्रमाणे आहे ---")
+        print(text_response if 'text_response' in locals() else "माहिती उपलब्ध नाही.")
+        print("--------------------------------------------------")
 else:
     print("अंतिम API Error:", data)
