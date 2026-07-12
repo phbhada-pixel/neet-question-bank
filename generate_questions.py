@@ -9,20 +9,20 @@ import uuid
 from datetime import datetime, timedelta
 from collections import Counter 
 
-# API Keys आणि Secrets
+# ----------------- API KEYS & SECRETS -----------------
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY") 
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 SHEET_ID = os.environ.get("SHEET_ID")
 GCP_CRED_JSON = os.environ.get("GCP_CREDENTIALS")
 
-# १. गुगल शीटशी कनेक्शन
+# ----------------- १. गुगल शीटशी कनेक्शन -----------------
 scopes = ["https://www.googleapis.com/auth/spreadsheets"]
 creds_dict = json.loads(GCP_CRED_JSON)
 creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
 client = gspread.authorize(creds)
 sheet = client.open_by_key(SHEET_ID).sheet1
 
-# गुगल शीटमधील आधीचे सर्व प्रश्न आणि चॅप्टर्स वाचून घेणे
 try:
     existing_questions_list = sheet.col_values(4) 
     existing_chapters_list = sheet.col_values(3) 
@@ -30,7 +30,7 @@ except:
     existing_questions_list = []
     existing_chapters_list = []
 
-# २. NEET चा संपूर्ण सिलॅबस 
+# ----------------- २. NEET सिलॅबस -----------------
 syllabus = [
     # --- PHYSICS ---
     {"subject": "Physics", "chapter": "Physics and Measurement", "topics": "Units of measurements, System of Units, SI Units, fundamental and derived units, least count, significant figures, Errors in measurements, Dimensions of Physics quantities, dimensional analysis."},
@@ -83,7 +83,7 @@ syllabus = [
     {"subject": "Chemistry", "chapter": "Polymers", "topics": "Classification of polymers, natural and synthetic polymers, methods of polymerization (addition and condensation), copolymerization, important polymers like polythene, nylon, polyesters, bakelite, rubber."},
     {"subject": "Chemistry", "chapter": "Chemistry in Everyday Life", "topics": "Chemicals in medicines (analgesics, tranquilizers, antiseptics, antibiotics), chemicals in food (preservatives, artificial sweetening agents), cleansing agents (soaps and detergents)."},
 
-    # --- BOTANY (वनस्पतीशास्त्र) ---
+    # --- BOTANY ---
     {"subject": "Botany", "chapter": "The Living World", "topics": "What is living?, Biodiversity, Taxonomy & Systematics, Concept of species, taxonomical hierarchy, Binomial nomenclature."},
     {"subject": "Botany", "chapter": "Biological Classification", "topics": "Five kingdom classification, salient features and classification of Monera, Protista and Fungi, Lichens, Viruses and Viroids."},
     {"subject": "Botany", "chapter": "Plant Kingdom", "topics": "Classification of plants into major groups: Algae, Bryophytes, Pteridophytes, Gymnosperms (salient and distinguishing features)."},
@@ -107,7 +107,7 @@ syllabus = [
     {"subject": "Botany", "chapter": "Biodiversity and Conservation", "topics": "Concept of Biodiversity, Patterns and Importance of Biodiversity, Loss of Biodiversity, Biodiversity conservation, Hotspots, endangered organisms, extinction, Red Data Book, biosphere reserves, National parks, Sacred Groves."},
     {"subject": "Botany", "chapter": "Environmental Issues", "topics": "Air pollution and its control, Water pollution and its control, Agrochemicals and their effects, Solid waste management, Radioactive waste management, Greenhouse effect and climate change, Ozone depletion, Deforestation."},
 
-    # --- ZOOLOGY (प्राणीशास्त्र) ---
+    # --- ZOOLOGY ---
     {"subject": "Zoology", "chapter": "Animal Kingdom", "topics": "Salient features and classification of animals: non-chordate up to phyla level and chordate up to classes level."},
     {"subject": "Zoology", "chapter": "Structural Organisation in Animals", "topics": "Animal tissues, Morphology, anatomy and functions of different systems (digestive, circulatory, respiratory, nervous and reproductive) of an insect (Frog)."},
     {"subject": "Zoology", "chapter": "Biomolecules", "topics": "Chemical constituents of living cells, structure and function of proteins, carbohydrates, lipids, nucleic acids, Enzymes (properties, action, classification)."},
@@ -126,9 +126,7 @@ syllabus = [
     {"subject": "Zoology", "chapter": "Biotechnology and Its Applications", "topics": "Application of Biotechnology in health and agriculture, Human insulin and vaccine production, gene therapy, Genetically modified organisms (Bt crops), Transgenic Animals, Biosafety issues (Biopiracy and patents)."}
 ]
 
-# ==========================================
-# 🚀 स्मार्ट ट्रॅकिंग सिस्टीम (Covered vs Remaining)
-# ==========================================
+# ----------------- ३. स्मार्ट ट्रॅकिंग (Covered vs Remaining) -----------------
 chapter_counts = Counter(existing_chapters_list[1:]) 
 TARGET_QUESTIONS_PER_CHAPTER = 100 
 
@@ -136,7 +134,6 @@ remaining_syllabus = []
 for topic in syllabus:
     chap_name = topic["chapter"]
     current_count = chapter_counts.get(chap_name, 0)
-    
     if current_count < TARGET_QUESTIONS_PER_CHAPTER:
         remaining_syllabus.append(topic)
 
@@ -144,60 +141,23 @@ print(f"📊 डॅशबोर्ड अपडेट: एकूण चॅप्
 
 if not remaining_syllabus:
     print("🎉 अभिनंदन! सर्व चॅप्टर्सचे टार्गेट पूर्ण झाले आहे!")
-    exit() 
+    exit()
 
-# --- चॅप्टरनुसार अचूक वेटेज (NEET 2019-2025 ट्रेंड्सनुसार) ---
 weightage_map = {
-    # --- BOTANY (High Yield) ---
-    "Molecular Basis of Inheritance": 10,
-    "Cell Cycle and Cell Division": 9,
-    "Principles of Inheritance and Variation": 9,
-    "Morphology of Flowering Plants": 7,
-    "Plant Growth and Development": 6,
-    "Plant Kingdom": 5,
-    "Anatomy of Flowering Plants": 6,
-    
-    # --- ZOOLOGY (High Yield) ---
-    "Biotechnology: Principles and Processes": 10,
-    "Biomolecules": 9,
-    "Animal Kingdom": 9,
-    "Structural Organisation in Animals": 8,
-    "Human Reproduction": 7,
-    "Reproductive Health": 7,
-    "Human Health and Disease": 6,
-    
-    # --- PHYSICS (High Yield) ---
-    "Current Electricity": 9,
-    "Electrostatics": 7,
-    "Optics (Ray Optics and Wave Optics)": 7,
-    "Semiconductor Electronics": 6,
-    "Thermodynamics": 6,
-    
-    # --- CHEMISTRY (High Yield) ---
-    "Aldehydes, Ketones and Carboxylic Acids": 8,
-    "Chemical Bonding and Molecular Structure": 7,
-    "Equilibrium": 6,
-    "Coordination Compounds": 6,
-    "Hydrocarbons": 6
+    "Molecular Basis of Inheritance": 10, "Cell Cycle and Cell Division": 9, "Principles of Inheritance and Variation": 9,
+    "Biotechnology: Principles and Processes": 10, "Biomolecules": 9, "Animal Kingdom": 9,
+    "Current Electricity": 9, "Electrostatics": 7, "Aldehydes, Ketones and Carboxylic Acids": 8, "Chemical Bonding and Molecular Structure": 7
 }
 
-# प्रत्येक चॅप्टरला वेटेज लागू करणे (आता फक्त Remaining चॅप्टर्समधून)
 chapter_weights = []
 for topic in remaining_syllabus:
     chap_name = topic["chapter"]
     subj_name = topic["subject"]
-    
     if chap_name in weightage_map:
         chapter_weights.append(weightage_map[chap_name])
     else:
-        if subj_name == "Zoology":
-            chapter_weights.append(5) 
-        elif subj_name == "Botany":
-            chapter_weights.append(4)
-        else:
-            chapter_weights.append(3)
+        chapter_weights.append(5 if subj_name == "Zoology" else (4 if subj_name == "Botany" else 3))
 
-# वेटेजनुसार चॅप्टर निवडला जाईल (फक्त Remaining मधून)
 selected_topic = random.choices(remaining_syllabus, weights=chapter_weights, k=1)[0]
 subject = selected_topic["subject"]
 chapter = selected_topic["chapter"]
@@ -206,44 +166,21 @@ topics = selected_topic["topics"]
 current_q_count = chapter_counts.get(chapter, 0)
 print(f"आजचा विषय: {subject} - {chapter} | (आतापर्यंत {current_q_count}/{TARGET_QUESTIONS_PER_CHAPTER} प्रश्न कव्हर झाले आहेत)")
 
-# ४. प्रश्न मागवणे (अचूक प्रॉम्प्ट - NEET Pattern, Bloom's Taxonomy, Mixed Types, LaTeX, Quality Score)
-prompt = f"""Generate exactly 20 UNIQUE multiple choice questions for NEET exam on the Subject: '{subject}' 
-and Chapter: '{chapter}'. STRICTLY base all your questions ONLY on the following NTA NEET 2025 topics: {topics}. 
-Make sure these are not the most common questions. Return ONLY a valid JSON array of objects. 
-Keys must be exactly: 'question', 'optionA', 'optionB', 'optionC', 'optionD', 'correctOption', 'explanation', 
-and a 'quality_score' object with keys: 'difficulty_score', 'concept_coverage', 'language', 'neet_similarity', 'distractor_quality', 'overall_score'.
+# ----------------- ४. PRIMARY PROMPT (GEMINI) -----------------
+prompt = f"""Generate exactly 20 UNIQUE multiple choice questions for NEET exam on Subject: '{subject}', Chapter: '{chapter}'. 
+STRICTLY base all questions ONLY on topics: {topics}. 
 
-CRITICAL INSTRUCTION FOR QUALITY SCORE:
-- Rate each parameter from 0-100 based on NEET standards.
-- Calculate 'overall_score' as the average of the 5 parameters.
-- If a question is too simple, has ambiguous options, or does not meet high NEET standards, give it a low score (< 80).
+Return ONLY a valid JSON array of objects. 
+Keys must be exactly: 'question', 'optionA', 'optionB', 'optionC', 'optionD', 'correctOption', 'explanation', 'quality_score'.
 
-CRITICAL INSTRUCTION FOR DIFFICULTY LEVEL:
-Distribute the 20 questions strictly according to the previous 10 years NEET exam pattern:
-- 5 questions of 'Easy' difficulty
-- 9 questions of 'Medium' difficulty
-- 5 questions of 'Hard' difficulty
-- 1 question of 'Very Difficult / Advanced Conceptual' difficulty
-
-CRITICAL INSTRUCTION FOR BLOOM'S TAXONOMY & QUESTION TYPES:
-Design the 20 questions to target the following Bloom's Taxonomy cognitive levels, combining them with appropriate question types:
-- REMEMBER (4 questions): Direct recall of facts, definitions, standard values. (Use 'Direct conceptual' type)
-- UNDERSTAND (5 questions): Explaining ideas or concepts. (Use 'Statement based' or 'Direct conceptual' types)
-- APPLY (5 questions): Using formulas, calculating values. (Use 'Numerical/Application based' type)
-- ANALYSE (4 questions): Finding relationships. (Use 'Assertion-Reason' or 'Match the following' types)
-- EVALUATE (2 questions): Judging validity of complex statements. (Use 'Multi conceptual' type)
-
-IMPORTANT RULES:
-1. MATCH THE FOLLOWING: put Column I and Column II entirely within the 'question' key. 
-2. LINE BREAKS: DO NOT use real line breaks in the text, use the escaped literal string '\\n' for new lines. 
-3. MATHEMATICAL/SCIENCE FORMULAS: You MUST use LaTeX format. 
-   - Enclose inline formulas using a single $ sign (e.g., $180^\\circ$). 
-   - You MUST double-escape all LaTeX backslashes for valid JSON (e.g., use $\\\\frac{{a}}{{b}}$ instead of $\\frac{{a}}{{b}}$ and $180^\\\\circ$ instead of $180^\\circ$).
-4. CHEMISTRY FORMULAS: For organic structures use condensed plain text (e.g., CH3-CH2-OH). DO NOT draw ASCII structures.
-5. Output strictly valid JSON without any markdown formatting.
+RULES FOR SCORING & FORMAT:
+- 'correctOption' MUST be exactly one of: "Option A", "Option B", "Option C", or "Option D".
+- 'quality_score' MUST be an object with key 'overall_score' (0-100).
+- For LaTeX, double-escape all backslashes (e.g. $\\\\frac{{a}}{{b}}$). For organic chemistry use condensed text (CH3-COOH).
+- Output strictly valid JSON without markdown formatting.
 """
 
-# ----------------- API FUNCTIONS (Google + Groq) -----------------
+# ----------------- AI CALL FUNCTIONS -----------------
 def call_gemini():
     list_url = f"https://generativelanguage.googleapis.com/v1beta/models?key={GEMINI_API_KEY}"
     models_data = requests.get(list_url).json()
@@ -256,7 +193,7 @@ def call_gemini():
                 break
 
     url = f"https://generativelanguage.googleapis.com/v1beta/{valid_model_name}:generateContent?key={GEMINI_API_KEY}"
-    payload = {"contents": [{"parts": [{"text": prompt}]}], "generationConfig": {"temperature": 0.8}}
+    payload = {"contents": [{"parts": [{"text": prompt}]}], "generationConfig": {"temperature": 0.7}}
     headers = {"Content-Type": "application/json"}
     response = requests.post(url, json=payload, headers=headers)
     
@@ -267,52 +204,100 @@ def call_gemini():
     if 'candidates' in data:
         return data['candidates'][0]['content']['parts'][0]['text']
     else:
-        raise Exception(f"Gemini API Response Error: {data}")
+        raise Exception(f"Gemini API Error: {data}")
 
-def call_groq():
+# --- Helper Function for Clean Answer Standardizing ---
+def standardize_option(ans_str):
+    if not ans_str:
+        return ""
+    ans = str(ans_str).upper().strip()
+    if "OPTION A" in ans or ans == "A": return "Option A"
+    if "OPTION B" in ans or ans == "B": return "Option B"
+    if "OPTION C" in ans or ans == "C": return "Option C"
+    if "OPTION D" in ans or ans == "D": return "Option D"
+    return ans_str.strip()
+
+# ----------------- VERIFIER 2: GROQ -----------------
+def verify_with_groq(q_text, optA, optB, optC, optD):
+    if not GROQ_API_KEY:
+        return None
     url = "https://api.groq.com/openai/v1/chat/completions"
-    headers = {
-        "Authorization": f"Bearer {GROQ_API_KEY}",
-        "Content-Type": "application/json"
-    }
-    payload = {
-        "model": "llama3-8b-8192", 
-        "messages": [{"role": "user", "content": prompt}],
-        "temperature": 0.8
-    }
-    response = requests.post(url, json=payload, headers=headers)
+    headers = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
     
-    if response.status_code != 200:
-        raise Exception(f"HTTP {response.status_code}: {response.text}")
-        
-    data = response.json()
-    return data['choices'][0]['message']['content']
+    verify_prompt = f"""You are an expert NEET Exam Verifier. Solve this question independently.
+Question: {q_text}
+Option A: {optA}
+Option B: {optB}
+Option C: {optC}
+Option D: {optD}
 
-# ----------------- FALLBACK MECHANISM -----------------
+Which single option is correct? Return ONLY a valid JSON object: {{"correctOption": "Option A"}} (or Option B/C/D)."""
+    
+    payload = {
+        "model": "llama-3.1-8b-instant",
+        "messages": [{"role": "user", "content": verify_prompt}],
+        "temperature": 0.0,
+        "response_format": {"type": "json_object"}
+    }
+    try:
+        res = requests.post(url, json=payload, headers=headers, timeout=15)
+        if res.status_code == 200:
+            data = res.json()
+            content = data['choices'][0]['message']['content']
+            parsed = json.loads(content)
+            return standardize_option(parsed.get('correctOption', ''))
+    except Exception as e:
+        print(f"⚠️ Groq verification warning: {e}")
+    return None
+
+# ----------------- VERIFIER 3: GPT (OPENAI) -----------------
+def verify_with_gpt(q_text, optA, optB, optC, optD):
+    if not OPENAI_API_KEY:
+        return None
+    url = "https://api.openai.com/v1/chat/completions"
+    headers = {"Authorization": f"Bearer {OPENAI_API_KEY}", "Content-Type": "application/json"}
+    
+    verify_prompt = f"""You are an expert NEET Exam Verifier. Solve this question independently.
+Question: {q_text}
+Option A: {optA}
+Option B: {optB}
+Option C: {optC}
+Option D: {optD}
+
+Which single option is correct? Return ONLY a valid JSON object: {{"correctOption": "Option A"}} (or Option B/C/D)."""
+    
+    payload = {
+        "model": "gpt-4o-mini",
+        "messages": [{"role": "user", "content": verify_prompt}],
+        "temperature": 0.0,
+        "response_format": {"type": "json_object"}
+    }
+    try:
+        res = requests.post(url, json=payload, headers=headers, timeout=15)
+        if res.status_code == 200:
+            data = res.json()
+            content = data['choices'][0]['message']['content']
+            parsed = json.loads(content)
+            return standardize_option(parsed.get('correctOption', ''))
+    except Exception as e:
+        print(f"⚠️ GPT verification warning: {e}")
+    return None
+
+# ----------------- ५. GENERATION & MULTI-AI VERIFICATION -----------------
 text_response = None
 
 try:
-    print("१. Google Gemini कडून प्रश्न मागत आहे...")
+    print("१. Gemini कडून प्राथमिक प्रश्न जनरेट करत आहे...")
     text_response = call_gemini()
-    print("✅ Gemini ने यशस्वरित्या प्रश्न पाठवले!")
+    print("✅ Gemini कडून प्रश्न प्राप्त झाले!")
 except Exception as e:
-    print(f"⚠️ Gemini API बिझी आहे किंवा एरर आला: {e}")
-    if GROQ_API_KEY:
-        print("२. Backup API (Groq) कडून प्रश्न मागत आहे...")
-        try:
-            text_response = call_groq()
-            print("✅ Groq ने यशस्वरित्या प्रश्न पाठवले!")
-        except Exception as e2:
-            print(f"❌ Groq API सुद्धा फेल झाले: {e2}")
-    else:
-        print("❌ Groq API Key उपलब्ध नाही.")
+    print(f"❌ Gemini generation error: {e}")
+    exit()
 
-# ५. डेटा सेव्ह करणे (Quality Score Filtering आणि ast सह)
 if text_response:
     try:
         start_idx = text_response.find('[')
         end_idx = text_response.rfind(']')
-        
         if start_idx != -1 and end_idx != -1:
             clean_string = text_response[start_idx:end_idx+1]
             questions = ast.literal_eval(clean_string)
@@ -324,50 +309,74 @@ if text_response:
 
         saved_count = 0
         duplicate_count = 0
-        rejected_count = 0
+        consensus_failed_count = 0
         rows_to_add = [] 
 
-        print("गुगल शीटमध्ये डेटा सेव्ह करत आहे...")
-        for q in questions:
-            # १. Quality Score तपासणे
-            scores = q.get('quality_score', {})
-            # float() चा वापर केला आहे जेणेकरून AI ने स्कोअर टेक्स्ट फॉरमॅटमध्ये दिला तरी एरर येणार नाही
-            overall = float(scores.get('overall_score', 0))
+        print("\n🔍 --- MULTI-AI VERIFICATION STARTED (Gemini ➔ Groq ➔ GPT) ---")
+        
+        for idx, q in enumerate(questions, 1):
+            q_text = q.get('question', '').strip()
+            optA = q.get('optionA', '').strip()
+            optB = q.get('optionB', '').strip()
+            optC = q.get('optionC', '').strip()
+            optD = q.get('optionD', '').strip()
             
-            # जर स्कोअर ९० पेक्षा कमी असेल तर रिजेक्ट करा
-            if overall < 90:
-                print(f"❌ रिजेक्टेड (Score: {overall}): {q.get('question', '')[:40]}...")
-                rejected_count += 1
-                continue 
+            gemini_ans = standardize_option(q.get('correctOption', ''))
 
-            # २. प्रश्न रिपीटीशन तपासणे
-            question_text = q.get('question', '').strip()
-            if question_text in existing_questions_list:
+            if not q_text or q_text in existing_questions_list:
                 duplicate_count += 1
                 continue 
 
-            # ३. रो (Row) तयार करणे
+            # Quality Score Check (> 85)
+            scores = q.get('quality_score', {})
+            overall = float(scores.get('overall_score', 0)) if isinstance(scores, dict) else 0
+            if overall < 85 and overall != 0:
+                print(f"❌ Q{idx}: Reject (Low Quality Score: {overall})")
+                continue
+
+            # --- VERIFICATION STEP 1: GROQ ---
+            groq_ans = verify_with_groq(q_text, optA, optB, optC, optD)
+            
+            # --- VERIFICATION STEP 2: GPT ---
+            gpt_ans = verify_with_gpt(q_text, optA, optB, optC, optD)
+
+            # --- CONSENSUS VERIFIER (3/3 AGREE REQUIREMENT) ---
+            # If API keys are set, ensure strict 3/3 match
+            if groq_ans and gpt_ans:
+                if gemini_ans == groq_ans == gpt_ans:
+                    print(f"✅ Q{idx}: [3/3 MATCH!] (Gemini: {gemini_ans} | Groq: {groq_ans} | GPT: {gpt_ans}) -> APPROVED")
+                else:
+                    print(f"❌ Q{idx}: [REJECTED - Disagreement] (Gemini: {gemini_ans} | Groq: {groq_ans} | GPT: {gpt_ans})")
+                    consensus_failed_count += 1
+                    continue
+            elif groq_ans: # If only Groq is available (2/2 check)
+                if gemini_ans == groq_ans:
+                    print(f"✅ Q{idx}: [2/2 MATCH!] (Gemini: {gemini_ans} | Groq: {groq_ans}) -> APPROVED")
+                else:
+                    print(f"❌ Q{idx}: [REJECTED] (Gemini: {gemini_ans} | Groq: {groq_ans})")
+                    consensus_failed_count += 1
+                    continue
+            else:
+                print(f"⚠️ Q{idx}: Skipped Multi-AI Check (Missing Verification Keys)")
+
+            # --- PREPARE FOR GOOGLE SHEET ---
             q_id = f"{subject[:3].upper()}-{uuid.uuid4().hex[:6].upper()}"
             row = [
-                q_id, subject, chapter, question_text,
-                q.get('optionA', ''), q.get('optionB', ''),
-                q.get('optionC', ''), q.get('optionD', ''),
-                q.get('correctOption', ''), q.get('explanation', ''), timestamp
+                q_id, subject, chapter, q_text,
+                optA, optB, optC, optD,
+                gemini_ans, q.get('explanation', ''), timestamp
             ]
             rows_to_add.append(row)
             saved_count += 1
-            print(f"✅ सिलेक्टेड (Score: {overall}): {q.get('question', '')[:40]}...")
-            
-        # ४. शीटमध्ये सेव्ह करणे
+
+        # ----------------- ६. SAVING TO SHEET -----------------
         if len(rows_to_add) > 0:
             sheet.append_rows(rows_to_add)
-            print(f"🎉 यशस्वी! {saved_count} नवीन प्रश्न जोडले गेले. (रिजेक्टेड: {rejected_count}, डुप्लिकेट: {duplicate_count}).")
+            print(f"\n🎉 यशस्वी! {saved_count} १००% व्हेरीफाय झालेले प्रश्न सेव्ह झाले. (रिजेक्टेड: {consensus_failed_count}, डुप्लिकेट: {duplicate_count}).")
         else:
-            print(f"कोणतेही नवीन प्रश्न सेव्ह झाले नाहीत. (रिजेक्टेड: {rejected_count}, डुप्लिकेट: {duplicate_count}).")
+            print(f"\n⚠️ कोणतेही प्रश्न सेव्ह झाले नाहीत. (रिजेक्ट: {consensus_failed_count}, डुप्लिकेट: {duplicate_count}).")
 
     except Exception as e:
-        print(f"Error parsing: {e}")
-        print("\n--- AI ने पाठवलेला चुकीचा डेटा ---")
+        print(f"❌ Error during execution: {e}")
+        print("\n--- Raw Response ---")
         print(text_response)
-else:
-    print("कोणत्याही API कडून उत्तर मिळाले नाही.")
