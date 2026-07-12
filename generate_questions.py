@@ -194,14 +194,20 @@ selected_type = random.choice(question_types)
 
 print(f"आजचा विषय: {subject} - {chapter} | प्रकार: {selected_difficulty}, {selected_type}")
 
-# ३. API ला पाठवण्यासाठी कडक प्रॉम्प्ट
+# ४. प्रश्न मागवणे (अचूक प्रॉम्प्ट - LaTeX सपोर्टसह)
 prompt = f"""Generate 20 UNIQUE and {selected_difficulty} level '{selected_type}' multiple choice questions for NEET exam on the Subject: '{subject}' 
 and Chapter: '{chapter}'. STRICTLY base all your questions ONLY on the following NTA NEET 2025 topics: {topics}. 
 Make sure these are not the most common questions. Return ONLY a valid JSON array of objects. 
 Keys must be exactly: 'question', 'optionA', 'optionB', 'optionC', 'optionD', 'correctOption', 'explanation'. 
-IMPORTANT: If generating 'Match the following' questions, put Column I and Column II entirely within the 'question' key. DO NOT use real line breaks in the text, use the escaped literal string '\\n' for new lines. Output strictly valid JSON without any markdown formatting.
-"""
 
+IMPORTANT RULES:
+1. If generating 'Match the following' questions, put Column I and Column II entirely within the 'question' key. 
+2. DO NOT use real line breaks in the text, use the escaped literal string '\\n' for new lines. 
+3. MATHEMATICAL FORMULAS: You MUST use LaTeX format for all mathematical expressions (e.g., use \\(\\frac{{a}}{{b}}\\)). 
+   - Enclose inline formulas in \\( ... \\). 
+   - Do not use plain text for math equations.
+4. Output strictly valid JSON without any markdown formatting.
+"""
 # ----------------- API FUNCTIONS (Google + Groq) -----------------
 def call_gemini():
     list_url = f"https://generativelanguage.googleapis.com/v1beta/models?key={GEMINI_API_KEY}"
