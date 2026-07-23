@@ -6,7 +6,7 @@ import random
 import uuid
 from datetime import datetime, timedelta
 from collections import Counter 
-from supabase import create_client, Client # <--- नवीन Supabase Import
+from supabase import create_client, Client 
 
 # ----------------- API KEYS & SECRETS -----------------
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
@@ -19,16 +19,13 @@ SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 TABLE_NAME = "NEET QUESTION BANK"
 
 # ----------------- १. SUPABASE CONNECTION -----------------
-# Supabase क्लायंट तयार करणे
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 print("Supabase डेटाबेसमधून जुना डेटा वाचत आहे...")
 try:
-    # आधीचे चॅप्टर्स वाचणे (Target Tracking साठी)
     chapters_response = supabase.table(TABLE_NAME).select("Chapter").execute()
     existing_chapters_list = [row['Chapter'] for row in chapters_response.data]
 
-    # आधीचे प्रश्न वाचणे (Duplicates टाळण्यासाठी)
     questions_response = supabase.table(TABLE_NAME).select("Question").execute()
     existing_questions_list = [row['Question'] for row in questions_response.data]
     print("✅ जुना डेटा यशस्वीरित्या वाचला!")
@@ -181,10 +178,10 @@ Return ONLY a valid JSON array of objects.
 Keys must be exactly: 'question', 'optionA', 'optionB', 'optionC', 'optionD', 'correctOption', 'explanation', 'quality_score', 'smiles_code'.
 
 RULES FOR SCORING & FORMAT:
-- 'correctOption' MUST be exactly one of: "Option A", "Option B", "Option C", or "Option D".
+- 'correctOption' MUST be strictly a SINGLE LETTER: "A", "B", "C", or "D". Do not write 'Option A' or the full answer text.
 - 'quality_score' MUST be an object with key 'overall_score' (0-100).
 - For MATHEMATICS/SCIENCE formulas use LaTeX (double-escaped like $\\\\frac{{a}}{{b}}$).
-- CHEMISTRY STRUCTURES: If the question involves an organic chemistry structure that needs to be visualized, provide its correct SMILES code in the 'smiles_code' key (e.g., "CC(=O)C" for Propanone). If no structure is needed, leave it as an empty string "".
+- CHEMISTRY STRUCTURES: If the question involves an organic chemistry structure that needs to be visualized, provide its correct SMILES code in the 'smiles_code' key (e.g., "CC(=O)C"). If no structure is needed, leave it as an empty string "".
 - Output strictly valid JSON without markdown formatting.
 """
 
@@ -214,16 +211,17 @@ def call_gemini():
     else:
         raise Exception(f"Gemini API Error: {data}")
 
-# --- Helper Function for Clean Answer Standardizing ---
+# --- Helper Function for Clean Answer Standardizing (आता फक्त एकच अक्षर देईल) ---
 def standardize_option(ans_str):
     if not ans_str:
         return ""
-    ans = str(ans_str).upper().strip()
-    if "OPTION A" in ans or ans == "A": return "Option A"
-    if "OPTION B" in ans or ans == "B": return "Option B"
-    if "OPTION C" in ans or ans == "C": return "Option C"
-    if "OPTION D" in ans or ans == "D": return "Option D"
-    return ans_str.strip()
+    # "Option A", "A", किंवा "Answer is A" मधील फक्त A, B, C, D शोधून काढणे
+    ans = str(ans_str).upper().replace("OPTION", "").replace(" ", "").strip()
+    if "A" in ans: return "A"
+    if "B" in ans: return "B"
+    if "C" in ans: return "C"
+    if "D" in ans: return "D"
+    return ans
 
 # ----------------- VERIFIER 2: GROQ -----------------
 def verify_with_groq(q_text, optA, optB, optC, optD):
@@ -234,12 +232,12 @@ def verify_with_groq(q_text, optA, optB, optC, optD):
     
     verify_prompt = f"""You are an expert NEET Exam Verifier. Solve this question independently.
 Question: {q_text}
-Option A: {optA}
-Option B: {optB}
-Option C: {optC}
-Option D: {optD}
+A) {optA}
+B) {optB}
+C) {optC}
+D) {optD}
 
-Which single option is correct? Return ONLY a valid JSON object: {{"correctOption": "Option A"}} (or Option B/C/D)."""
+Which single option is correct? Return ONLY a valid JSON object strictly using a single letter: {{"correctOption": "A"}} (or B/C/D). Do not write 'Option A' or the full answer text."""
     
     payload = {
         "model": "llama-3.1-8b-instant",
@@ -267,12 +265,12 @@ def verify_with_gpt(q_text, optA, optB, optC, optD):
     
     verify_prompt = f"""You are an expert NEET Exam Verifier. Solve this question independently.
 Question: {q_text}
-Option A: {optA}
-Option B: {optB}
-Option C: {optC}
-Option D: {optD}
+A) {optA}
+B) {optB}
+C) {optC}
+D) {optD}
 
-Which single option is correct? Return ONLY a valid JSON object: {{"correctOption": "Option A"}} (or Option B/C/D)."""
+Which single option is correct? Return ONLY a valid JSON object strictly using a single letter: {{"correctOption": "A"}} (or B/C/D). Do not write 'Option A' or the full answer text."""
     
     payload = {
         "model": "gpt-4o-mini",
@@ -381,6 +379,7 @@ if text_response:
                 "Option D": optD,
                 "Correct Option": gemini_ans,
                 "Detailed Explanation": q.get('explanation', ''),
+                "Smiles": q.get('smiles_code', ''), 
                 "Timestamp": timestamp
             }
             rows_to_add.append(row)
