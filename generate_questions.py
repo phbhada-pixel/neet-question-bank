@@ -178,12 +178,13 @@ prompt = f"""Generate exactly 20 UNIQUE multiple choice questions for NEET exam 
 STRICTLY base all questions ONLY on topics: {topics}. 
 
 Return ONLY a valid JSON array of objects. 
-Keys must be exactly: 'question', 'optionA', 'optionB', 'optionC', 'optionD', 'correctOption', 'explanation', 'quality_score'.
+Keys must be exactly: 'question', 'optionA', 'optionB', 'optionC', 'optionD', 'correctOption', 'explanation', 'quality_score', 'smiles_code'.
 
 RULES FOR SCORING & FORMAT:
 - 'correctOption' MUST be exactly one of: "Option A", "Option B", "Option C", or "Option D".
 - 'quality_score' MUST be an object with key 'overall_score' (0-100).
-- For LaTeX, double-escape all backslashes (e.g. $\\\\frac{{a}}{{b}}$). For organic chemistry use condensed text (CH3-COOH).
+- For MATHEMATICS/SCIENCE formulas use LaTeX (double-escaped like $\\\\frac{{a}}{{b}}$).
+- CHEMISTRY STRUCTURES: If the question involves an organic chemistry structure that needs to be visualized, provide its correct SMILES code in the 'smiles_code' key (e.g., "CC(=O)C" for Propanone). If no structure is needed, leave it as an empty string "".
 - Output strictly valid JSON without markdown formatting.
 """
 
