@@ -130,7 +130,7 @@ syllabus = [
     {"subject": "Zoology", "chapter": "Biotechnology and Its Applications", "topics": "Application of Biotechnology in health and agriculture, Human insulin and vaccine production, gene therapy, Genetically modified organisms (Bt crops), Transgenic Animals, Biosafety issues (Biopiracy and patents)."}
 ]
 
-# ----------------- ३. स्मार्ट ट्रॅकिंग (Covered vs Remaining) -----------------
+# ----------------- ३. स्मार्ट ट्रॅकिंग & BOT CONTROL -----------------
 chapter_counts = Counter(existing_chapters_list) 
 TARGET_QUESTIONS_PER_CHAPTER = 100 
 
@@ -162,7 +162,32 @@ for topic in remaining_syllabus:
     else:
         chapter_weights.append(5 if subj_name == "Zoology" else (4 if subj_name == "Botany" else 3))
 
-selected_topic = random.choices(remaining_syllabus, weights=chapter_weights, k=1)[0]
+# --- SUPABASE BOT CONTROL CHECK ---
+print("बॉटचा डॅशबोर्डवरील कंट्रोल मोड तपासत आहे...")
+try:
+    control_response = supabase.table("bot_control").select("*").eq("id", 1).execute()
+    bot_mode = control_response.data[0]['mode']
+    manual_chapter_name = control_response.data[0]['manual_chapter']
+except Exception as e:
+    print(f"⚠️ कंट्रोल टेबल वाचताना एरर (Defaulting to Auto): {e}")
+    bot_mode = 'Auto'
+    manual_chapter_name = 'None'
+
+selected_topic = None
+
+# डॅशबोर्ड मोडनुसार चॅप्टर निवडणे
+if bot_mode == 'Manual' and manual_chapter_name != 'None':
+    for topic in syllabus:
+        if topic["chapter"] == manual_chapter_name:
+            selected_topic = topic
+            break
+    if selected_topic:
+        print(f"🎯 मॅन्यूअल मोड ऍक्टिव्ह: डॅशबोर्डवरून निवडलेला चॅप्टर '{manual_chapter_name}' जनरेट करत आहे.")
+
+if selected_topic is None:
+    print("🎲 ऑटो मोड ऍक्टिव्ह: AI स्वतःच्या वेटेजनुसार चॅप्टर निवडत आहे.")
+    selected_topic = random.choices(remaining_syllabus, weights=chapter_weights, k=1)[0]
+
 subject = selected_topic["subject"]
 chapter = selected_topic["chapter"]
 topics = selected_topic["topics"] 
@@ -211,11 +236,10 @@ def call_gemini():
     else:
         raise Exception(f"Gemini API Error: {data}")
 
-# --- Helper Function for Clean Answer Standardizing (आता फक्त एकच अक्षर देईल) ---
+# --- Helper Function for Clean Answer Standardizing ---
 def standardize_option(ans_str):
     if not ans_str:
         return ""
-    # "Option A", "A", किंवा "Answer is A" मधील फक्त A, B, C, D शोधून काढणे
     ans = str(ans_str).upper().replace("OPTION", "").replace(" ", "").strip()
     if "A" in ans: return "A"
     if "B" in ans: return "B"
@@ -367,7 +391,6 @@ if text_response:
             # --- PREPARE FOR SUPABASE (डिक्शनरी फॉरमॅट) ---
             q_id = f"{subject[:3].upper()}-{uuid.uuid4().hex[:6].upper()}"
             
-            # तुमच्या CSV मधील कॉलम्सनुसार डेटा मॅपिंग
             row = {
                 "Question ID": q_id,
                 "Subject": subject,
@@ -388,7 +411,6 @@ if text_response:
         # ----------------- ६. SAVING TO SUPABASE -----------------
         if len(rows_to_add) > 0:
             try:
-                # Supabase टेबलमध्ये एकाच वेळी सर्व डेटा Insert करणे
                 supabase.table(TABLE_NAME).insert(rows_to_add).execute()
                 print(f"\n🎉 यशस्वी! {saved_count} १००% व्हेरीफाय झालेले प्रश्न Supabase मध्ये सेव्ह झाले. (रिजेक्टेड: {consensus_failed_count}, डुप्लिकेट: {duplicate_count}).")
             except Exception as e:
