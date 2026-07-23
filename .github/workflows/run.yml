@@ -22,8 +22,8 @@ jobs:
 
       - name: Run Script
         env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          SHEET_ID: ${{ secrets.SHEET_ID }}
-          GCP_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
-          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-        run: python generate_questions.py
+        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+        SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
