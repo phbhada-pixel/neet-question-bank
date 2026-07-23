@@ -3,7 +3,7 @@ name: Generate NEET MCQs
 on:
   workflow_dispatch: 
   schedule:
-    - cron: '0 */1 * * *'
+    - cron: '0 */1 * * *' # दर १ तासाने रन होईल
 
 jobs:
   generate-questions:
@@ -18,12 +18,15 @@ jobs:
           python-version: '3.10'
 
       - name: Install Dependencies
-        run: pip install gspread google-auth requests
+        # आपण गुगल शीट काढून supabase टाकले आहे
+        run: pip install requests supabase
 
       - name: Run Script
         env:
-        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-        SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        # ही कमांड फाईल रन करेल (तुमच्या फाईलचे नाव generate_questions.py आहे असे गृहीत धरले आहे)
+        run: python generate_questions.py
