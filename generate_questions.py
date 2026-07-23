@@ -1,34 +1,41 @@
 import os
 import json
 import ast
-import gspread
-from google.oauth2.service_account import Credentials
 import requests
 import random
 import uuid
 from datetime import datetime, timedelta
 from collections import Counter 
+from supabase import create_client, Client # <--- नवीन Supabase Import
 
 # ----------------- API KEYS & SECRETS -----------------
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY") 
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
-SHEET_ID = os.environ.get("SHEET_ID")
-GCP_CRED_JSON = os.environ.get("GCP_CREDENTIALS")
 
-# ----------------- १. गुगल शीटशी कनेक्शन -----------------
-scopes = ["https://www.googleapis.com/auth/spreadsheets"]
-creds_dict = json.loads(GCP_CRED_JSON)
-creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
-client = gspread.authorize(creds)
-sheet = client.open_by_key(SHEET_ID).sheet1
+# --- SUPABASE CREDENTIALS ---
+SUPABASE_URL = os.environ.get("SUPABASE_URL")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
+TABLE_NAME = "NEET QUESTION BANK"
 
+# ----------------- १. SUPABASE CONNECTION -----------------
+# Supabase क्लायंट तयार करणे
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+print("Supabase डेटाबेसमधून जुना डेटा वाचत आहे...")
 try:
-    existing_questions_list = sheet.col_values(4) 
-    existing_chapters_list = sheet.col_values(3) 
-except:
-    existing_questions_list = []
+    # आधीचे चॅप्टर्स वाचणे (Target Tracking साठी)
+    chapters_response = supabase.table(TABLE_NAME).select("Chapter").execute()
+    existing_chapters_list = [row['Chapter'] for row in chapters_response.data]
+
+    # आधीचे प्रश्न वाचणे (Duplicates टाळण्यासाठी)
+    questions_response = supabase.table(TABLE_NAME).select("Question").execute()
+    existing_questions_list = [row['Question'] for row in questions_response.data]
+    print("✅ जुना डेटा यशस्वीरित्या वाचला!")
+except Exception as e:
+    print(f"⚠️ Supabase Error (Fetch): {e}")
     existing_chapters_list = []
+    existing_questions_list = []
 
 # ----------------- २. NEET सिलॅबस -----------------
 syllabus = [
@@ -127,7 +134,7 @@ syllabus = [
 ]
 
 # ----------------- ३. स्मार्ट ट्रॅकिंग (Covered vs Remaining) -----------------
-chapter_counts = Counter(existing_chapters_list[1:]) 
+chapter_counts = Counter(existing_chapters_list) 
 TARGET_QUESTIONS_PER_CHAPTER = 100 
 
 remaining_syllabus = []
@@ -341,7 +348,6 @@ if text_response:
             gpt_ans = verify_with_gpt(q_text, optA, optB, optC, optD)
 
             # --- CONSENSUS VERIFIER (3/3 AGREE REQUIREMENT) ---
-            # If API keys are set, ensure strict 3/3 match
             if groq_ans and gpt_ans:
                 if gemini_ans == groq_ans == gpt_ans:
                     print(f"✅ Q{idx}: [3/3 MATCH!] (Gemini: {gemini_ans} | Groq: {groq_ans} | GPT: {gpt_ans}) -> APPROVED")
@@ -349,7 +355,7 @@ if text_response:
                     print(f"❌ Q{idx}: [REJECTED - Disagreement] (Gemini: {gemini_ans} | Groq: {groq_ans} | GPT: {gpt_ans})")
                     consensus_failed_count += 1
                     continue
-            elif groq_ans: # If only Groq is available (2/2 check)
+            elif groq_ans:
                 if gemini_ans == groq_ans:
                     print(f"✅ Q{idx}: [2/2 MATCH!] (Gemini: {gemini_ans} | Groq: {groq_ans}) -> APPROVED")
                 else:
@@ -359,22 +365,36 @@ if text_response:
             else:
                 print(f"⚠️ Q{idx}: Skipped Multi-AI Check (Missing Verification Keys)")
 
-            # --- PREPARE FOR GOOGLE SHEET ---
+            # --- PREPARE FOR SUPABASE (डिक्शनरी फॉरमॅट) ---
             q_id = f"{subject[:3].upper()}-{uuid.uuid4().hex[:6].upper()}"
-            row = [
-                q_id, subject, chapter, q_text,
-                optA, optB, optC, optD,
-                gemini_ans, q.get('explanation', ''), timestamp
-            ]
+            
+            # तुमच्या CSV मधील कॉलम्सनुसार डेटा मॅपिंग
+            row = {
+                "Question ID": q_id,
+                "Subject": subject,
+                "Chapter": chapter,
+                "Question": q_text,
+                "Option A": optA,
+                "Option B": optB,
+                "Option C": optC,
+                "Option D": optD,
+                "Correct Option": gemini_ans,
+                "Detailed Explanation": q.get('explanation', ''),
+                "Timestamp": timestamp
+            }
             rows_to_add.append(row)
             saved_count += 1
 
-        # ----------------- ६. SAVING TO SHEET -----------------
+        # ----------------- ६. SAVING TO SUPABASE -----------------
         if len(rows_to_add) > 0:
-            sheet.append_rows(rows_to_add)
-            print(f"\n🎉 यशस्वी! {saved_count} १००% व्हेरीफाय झालेले प्रश्न सेव्ह झाले. (रिजेक्टेड: {consensus_failed_count}, डुप्लिकेट: {duplicate_count}).")
+            try:
+                # Supabase टेबलमध्ये एकाच वेळी सर्व डेटा Insert करणे
+                supabase.table(TABLE_NAME).insert(rows_to_add).execute()
+                print(f"\n🎉 यशस्वी! {saved_count} १००% व्हेरीफाय झालेले प्रश्न Supabase मध्ये सेव्ह झाले. (रिजेक्टेड: {consensus_failed_count}, डुप्लिकेट: {duplicate_count}).")
+            except Exception as e:
+                print(f"\n❌ Supabase मध्ये सेव्ह करताना एरर आला: {e}")
         else:
-            print(f"\n⚠️ कोणतेही प्रश्न सेव्ह झाले नाहीत. (रिजेक्ट: {consensus_failed_count}, डुप्लिकेट: {duplicate_count}).")
+            print(f"\n⚠️ कोणतेही नवीन प्रश्न सेव्ह झाले नाहीत. (रिजेक्ट: {consensus_failed_count}, डुप्लिकेट: {duplicate_count}).")
 
     except Exception as e:
         print(f"❌ Error during execution: {e}")
