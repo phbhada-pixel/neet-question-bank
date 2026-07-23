@@ -132,7 +132,7 @@ syllabus = [
 
 # ----------------- ३. स्मार्ट ट्रॅकिंग & BOT CONTROL -----------------
 chapter_counts = Counter(existing_chapters_list) 
-TARGET_QUESTIONS_PER_CHAPTER = 100 
+TARGET_QUESTIONS_PER_CHAPTER = 1000 
 
 remaining_syllabus = []
 for topic in syllabus:
