@@ -175,7 +175,6 @@ except Exception as e:
 
 selected_topic = None
 
-# मल्टिपल चॅप्टर्स वाचणे
 if bot_mode == 'Manual' and manual_chapters_raw and manual_chapters_raw != 'None':
     manual_chapters_list = [c.strip() for c in manual_chapters_raw.split(',')]
     valid_manual_topics = [t for t in syllabus if t["chapter"] in manual_chapters_list]
@@ -281,48 +280,14 @@ Which single option is correct? Return ONLY a valid JSON object strictly using a
         print(f"⚠️ Groq verification warning: {e}")
     return None
 
-# ----------------- VERIFIER 3: GPT (OPENAI) -----------------
-def verify_with_gpt(q_text, optA, optB, optC, optD):
-    if not OPENAI_API_KEY:
-        return None
-    url = "https://api.openai.com/v1/chat/completions"
-    headers = {"Authorization": f"Bearer {OPENAI_API_KEY}", "Content-Type": "application/json"}
-    
-    verify_prompt = f"""You are an expert NEET Exam Verifier. Solve this question independently.
-Question: {q_text}
-A) {optA}
-B) {optB}
-C) {optC}
-D) {optD}
-
-Which single option is correct? Return ONLY a valid JSON object strictly using a single letter: {{"correctOption": "A"}} (or B/C/D). Do not write 'Option A' or the full answer text."""
-    
-    payload = {
-        "model": "gpt-4o-mini",
-        "messages": [{"role": "user", "content": verify_prompt}],
-        "temperature": 0.0,
-        "response_format": {"type": "json_object"}
-    }
-    try:
-        res = requests.post(url, json=payload, headers=headers, timeout=15)
-        if res.status_code == 200:
-            data = res.json()
-            content = data['choices'][0]['message']['content']
-            parsed = json.loads(content)
-            return standardize_option(parsed.get('correctOption', ''))
-    except Exception as e:
-        print(f"⚠️ GPT verification warning: {e}")
-    return None
-
-# 🚀 ----------------- NEW: OPENAI DETAILED EXPLANATION GENERATOR -----------------
-def get_detailed_explanation_from_gpt(q_text, optA, optB, optC, optD, correct_ans):
-    if not OPENAI_API_KEY:
+# 🚀 ----------------- NEW: GROQ DETAILED EXPLANATION GENERATOR -----------------
+def get_detailed_explanation_from_groq(q_text, optA, optB, optC, optD, correct_ans):
+    if not GROQ_API_KEY:
         return ""
     
-    url = "https://api.openai.com/v1/chat/completions"
-    headers = {"Authorization": f"Bearer {OPENAI_API_KEY}", "Content-Type": "application/json"}
+    url = "https://api.groq.com/openai/v1/chat/completions"
+    headers = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
     
-    # Prompt for detailed teaching explanation
     explain_prompt = f"""You are an expert NEET Biology/Chemistry/Physics tutor. Provide a highly detailed, conceptual, and step-by-step explanation for the following multiple-choice question.
     
 Question: {q_text}
@@ -336,7 +301,7 @@ Correct Answer is: {correct_ans}
 Explain the underlying core concept, clearly state why the correct option is the right choice, and briefly explain why the other options are incorrect. Make it easy for a student to understand. Keep it clean and formatted nicely using basic text. Use LaTeX formatting (e.g. $\\frac{{a}}{{b}}$) ONLY if math or chemical formulas are strictly necessary."""
 
     payload = {
-        "model": "gpt-4o-mini",
+        "model": "llama-3.3-70b-versatile", # Groq चे सर्वात शक्तिशाली मॉडेल स्पष्टीकरणासाठी
         "messages": [{"role": "user", "content": explain_prompt}],
         "temperature": 0.3
     }
@@ -347,10 +312,44 @@ Explain the underlying core concept, clearly state why the correct option is the
             data = res.json()
             return data['choices'][0]['message']['content'].strip()
         else:
-            print(f"⚠️ OpenAI Explanation API Error: {res.text}")
+            print(f"⚠️ Groq Explanation API Error: {res.text}")
             return ""
     except Exception as e:
-        print(f"⚠️ Failed to get detailed explanation: {e}")
+        print(f"⚠️ Failed to get explanation from Groq: {e}")
+        return ""
+
+# 🚀 ----------------- NEW: GEMINI FALLBACK EXPLANATION GENERATOR -----------------
+def get_detailed_explanation_from_gemini(q_text, optA, optB, optC, optD, correct_ans):
+    if not GEMINI_API_KEY:
+        return ""
+        
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
+    
+    explain_prompt = f"""You are an expert NEET Biology/Chemistry/Physics tutor. Provide a highly detailed, conceptual, and step-by-step explanation for the following multiple-choice question.
+    
+Question: {q_text}
+A) {optA}
+B) {optB}
+C) {optC}
+D) {optD}
+
+Correct Answer is: {correct_ans}
+
+Explain the underlying core concept, clearly state why the correct option is the right choice, and briefly explain why the other options are incorrect. Make it easy for a student to understand. Keep it clean and formatted nicely using basic text. Use LaTeX formatting (e.g. $\\frac{{a}}{{b}}$) ONLY if math or chemical formulas are strictly necessary."""
+
+    payload = {"contents": [{"parts": [{"text": explain_prompt}]}], "generationConfig": {"temperature": 0.3}}
+    headers = {"Content-Type": "application/json"}
+    
+    try:
+        response = requests.post(url, json=payload, headers=headers, timeout=20)
+        if response.status_code == 200:
+            data = response.json()
+            if 'candidates' in data and len(data['candidates']) > 0:
+                return data['candidates'][0]['content']['parts'][0]['text'].strip()
+        print(f"⚠️ Gemini Explanation API Error: {response.text}")
+        return ""
+    except Exception as e:
+        print(f"⚠️ Failed to get explanation from Gemini: {e}")
         return ""
 
 # ----------------- ५. GENERATION & MULTI-AI VERIFICATION -----------------
@@ -407,43 +406,37 @@ if text_response:
             # --- VERIFICATION STEP 1: GROQ ---
             groq_ans = verify_with_groq(q_text, optA, optB, optC, optD)
             
-            # --- VERIFICATION STEP 2: GPT ---
-            gpt_ans = verify_with_gpt(q_text, optA, optB, optC, optD)
-
-            # --- CONSENSUS VERIFIER (3/3 AGREE REQUIREMENT) ---
+            # --- CONSENSUS VERIFIER ---
             is_approved = False
             
-            if groq_ans and gpt_ans:
-                if gemini_ans == groq_ans == gpt_ans:
-                    print(f"✅ Q{idx}: [3/3 MATCH!] (Gemini: {gemini_ans} | Groq: {groq_ans} | GPT: {gpt_ans}) -> APPROVED")
-                    is_approved = True
-                else:
-                    print(f"❌ Q{idx}: [REJECTED - Disagreement] (Gemini: {gemini_ans} | Groq: {groq_ans} | GPT: {gpt_ans})")
-                    consensus_failed_count += 1
-                    continue
-            elif groq_ans:
+            if groq_ans:
                 if gemini_ans == groq_ans:
                     print(f"✅ Q{idx}: [2/2 MATCH!] (Gemini: {gemini_ans} | Groq: {groq_ans}) -> APPROVED")
                     is_approved = True
                 else:
-                    print(f"❌ Q{idx}: [REJECTED] (Gemini: {gemini_ans} | Groq: {groq_ans})")
+                    print(f"❌ Q{idx}: [REJECTED - Disagreement] (Gemini: {gemini_ans} | Groq: {groq_ans})")
                     consensus_failed_count += 1
                     continue
             else:
-                print(f"⚠️ Q{idx}: Skipped Multi-AI Check (Missing Verification Keys)")
-                is_approved = True # Approve if no verification keys are provided, fallback to Gemini
+                print(f"⚠️ Q{idx}: Skipped Verification (Groq Key Missing)")
+                is_approved = True
 
             # 🚀 --- FETCH DETAILED EXPLANATION IF QUESTION IS APPROVED ---
-            final_explanation = q.get('explanation', '') # Default to Gemini's short explanation
-            if is_approved and OPENAI_API_KEY:
-                print(f"   ⏳ OpenAI (GPT) कडून सविस्तर स्पष्टीकरण (Detailed Explanation) तयार करत आहे...")
-                gpt_detailed_explanation = get_detailed_explanation_from_gpt(q_text, optA, optB, optC, optD, gemini_ans)
+            final_explanation = q.get('explanation', '') 
+            
+            if is_approved:
+                print(f"   ⏳ Groq (Llama-3) कडून सविस्तर स्पष्टीकरण घेत आहे...")
+                detailed_explanation = get_detailed_explanation_from_groq(q_text, optA, optB, optC, optD, gemini_ans)
                 
-                # जर OpenAI कडून उत्तर आले तर ते वापरा, अन्यथा जुनेच ठेवा
-                if gpt_detailed_explanation:
-                    final_explanation = gpt_detailed_explanation
+                # जर Groq फेल झाले, तर Fallback म्हणून Gemini कडून स्पष्टीकरण घेणे
+                if not detailed_explanation:
+                    print(f"   ⚠️ Groq फेल झाले. Gemini कडून सविस्तर स्पष्टीकरण घेत आहे...")
+                    detailed_explanation = get_detailed_explanation_from_gemini(q_text, optA, optB, optC, optD, gemini_ans)
+                
+                if detailed_explanation:
+                    final_explanation = detailed_explanation
 
-            # --- PREPARE FOR SUPABASE (डिक्शनरी फॉरमॅट) ---
+            # --- PREPARE FOR SUPABASE ---
             q_id = f"{subject[:3].upper()}-{uuid.uuid4().hex[:6].upper()}"
             
             row = {
@@ -456,7 +449,7 @@ if text_response:
                 "Option C": optC,
                 "Option D": optD,
                 "Correct Option": gemini_ans,
-                "Detailed Explanation": final_explanation, # <--- नवीन सविस्तर स्पष्टीकरण इथे जोडले आहे
+                "Detailed Explanation": final_explanation,
                 "Smiles": q.get('smiles_code', ''), 
                 "Timestamp": timestamp
             }
