@@ -167,7 +167,7 @@ print("बॉटचा डॅशबोर्डवरील कंट्रो�
 try:
     control_response = supabase.table("bot_control").select("*").eq("id", 1).execute()
     bot_mode = control_response.data[0]['mode']
-    manual_chapters_raw = control_response.data[0]['manual_chapter'] # आता इथे एकापेक्षा जास्त चॅप्टर्स येऊ शकतात
+    manual_chapters_raw = control_response.data[0]['manual_chapter'] 
 except Exception as e:
     print(f"⚠️ कंट्रोल टेबल वाचताना एरर (Defaulting to Auto): {e}")
     bot_mode = 'Auto'
@@ -175,22 +175,17 @@ except Exception as e:
 
 selected_topic = None
 
-# 🚀 अपडेटेड लॉजिक: मल्टिपल चॅप्टर्स वाचणे
+# मल्टिपल चॅप्टर्स वाचणे
 if bot_mode == 'Manual' and manual_chapters_raw and manual_chapters_raw != 'None':
-    # स्वल्पविरामाने जोडलेले सर्व चॅप्टर्स एका लिस्टमध्ये वेगळे करणे
     manual_chapters_list = [c.strip() for c in manual_chapters_raw.split(',')]
-    
-    # सिलॅबसमधून फक्त आपण निवडलेलेच चॅप्टर्स वेगळे काढणे
     valid_manual_topics = [t for t in syllabus if t["chapter"] in manual_chapters_list]
     
     if valid_manual_topics:
-        # निवडलेल्या चॅप्टर्सपैकी कोणताही एक रँडमली निवडणे
         selected_topic = random.choice(valid_manual_topics)
         print(f"🎯 मॅन्यूअल मोड ऍक्टिव्ह: तुम्ही निवडलेल्या {len(valid_manual_topics)} चॅप्टर्सपैकी '{selected_topic['chapter']}' जनरेट करत आहे.")
     else:
         print("⚠️ मॅन्यूअल मोडमध्ये निवडलेले चॅप्टर्स सिलॅबसमध्ये सापडले नाहीत. ऑटो मोडवर शिफ्ट करत आहे.")
 
-# जर 'Auto' मोड असेल किंवा मॅन्यूअल चॅप्टर सापडला नाही
 if selected_topic is None:
     print("🎲 ऑटो मोड ऍक्टिव्ह: AI स्वतःच्या वेटेजनुसार चॅप्टर निवडत आहे.")
     selected_topic = random.choices(remaining_syllabus, weights=chapter_weights, k=1)[0]
@@ -243,7 +238,6 @@ def call_gemini():
     else:
         raise Exception(f"Gemini API Error: {data}")
 
-# --- Helper Function for Clean Answer Standardizing ---
 def standardize_option(ans_str):
     if not ans_str:
         return ""
@@ -320,6 +314,45 @@ Which single option is correct? Return ONLY a valid JSON object strictly using a
         print(f"⚠️ GPT verification warning: {e}")
     return None
 
+# 🚀 ----------------- NEW: OPENAI DETAILED EXPLANATION GENERATOR -----------------
+def get_detailed_explanation_from_gpt(q_text, optA, optB, optC, optD, correct_ans):
+    if not OPENAI_API_KEY:
+        return ""
+    
+    url = "https://api.openai.com/v1/chat/completions"
+    headers = {"Authorization": f"Bearer {OPENAI_API_KEY}", "Content-Type": "application/json"}
+    
+    # Prompt for detailed teaching explanation
+    explain_prompt = f"""You are an expert NEET Biology/Chemistry/Physics tutor. Provide a highly detailed, conceptual, and step-by-step explanation for the following multiple-choice question.
+    
+Question: {q_text}
+A) {optA}
+B) {optB}
+C) {optC}
+D) {optD}
+
+Correct Answer is: {correct_ans}
+
+Explain the underlying core concept, clearly state why the correct option is the right choice, and briefly explain why the other options are incorrect. Make it easy for a student to understand. Keep it clean and formatted nicely using basic text. Use LaTeX formatting (e.g. $\\frac{{a}}{{b}}$) ONLY if math or chemical formulas are strictly necessary."""
+
+    payload = {
+        "model": "gpt-4o-mini",
+        "messages": [{"role": "user", "content": explain_prompt}],
+        "temperature": 0.3
+    }
+    
+    try:
+        res = requests.post(url, json=payload, headers=headers, timeout=20)
+        if res.status_code == 200:
+            data = res.json()
+            return data['choices'][0]['message']['content'].strip()
+        else:
+            print(f"⚠️ OpenAI Explanation API Error: {res.text}")
+            return ""
+    except Exception as e:
+        print(f"⚠️ Failed to get detailed explanation: {e}")
+        return ""
+
 # ----------------- ५. GENERATION & MULTI-AI VERIFICATION -----------------
 text_response = None
 
@@ -378,9 +411,12 @@ if text_response:
             gpt_ans = verify_with_gpt(q_text, optA, optB, optC, optD)
 
             # --- CONSENSUS VERIFIER (3/3 AGREE REQUIREMENT) ---
+            is_approved = False
+            
             if groq_ans and gpt_ans:
                 if gemini_ans == groq_ans == gpt_ans:
                     print(f"✅ Q{idx}: [3/3 MATCH!] (Gemini: {gemini_ans} | Groq: {groq_ans} | GPT: {gpt_ans}) -> APPROVED")
+                    is_approved = True
                 else:
                     print(f"❌ Q{idx}: [REJECTED - Disagreement] (Gemini: {gemini_ans} | Groq: {groq_ans} | GPT: {gpt_ans})")
                     consensus_failed_count += 1
@@ -388,12 +424,24 @@ if text_response:
             elif groq_ans:
                 if gemini_ans == groq_ans:
                     print(f"✅ Q{idx}: [2/2 MATCH!] (Gemini: {gemini_ans} | Groq: {groq_ans}) -> APPROVED")
+                    is_approved = True
                 else:
                     print(f"❌ Q{idx}: [REJECTED] (Gemini: {gemini_ans} | Groq: {groq_ans})")
                     consensus_failed_count += 1
                     continue
             else:
                 print(f"⚠️ Q{idx}: Skipped Multi-AI Check (Missing Verification Keys)")
+                is_approved = True # Approve if no verification keys are provided, fallback to Gemini
+
+            # 🚀 --- FETCH DETAILED EXPLANATION IF QUESTION IS APPROVED ---
+            final_explanation = q.get('explanation', '') # Default to Gemini's short explanation
+            if is_approved and OPENAI_API_KEY:
+                print(f"   ⏳ OpenAI (GPT) कडून सविस्तर स्पष्टीकरण (Detailed Explanation) तयार करत आहे...")
+                gpt_detailed_explanation = get_detailed_explanation_from_gpt(q_text, optA, optB, optC, optD, gemini_ans)
+                
+                # जर OpenAI कडून उत्तर आले तर ते वापरा, अन्यथा जुनेच ठेवा
+                if gpt_detailed_explanation:
+                    final_explanation = gpt_detailed_explanation
 
             # --- PREPARE FOR SUPABASE (डिक्शनरी फॉरमॅट) ---
             q_id = f"{subject[:3].upper()}-{uuid.uuid4().hex[:6].upper()}"
@@ -408,7 +456,7 @@ if text_response:
                 "Option C": optC,
                 "Option D": optD,
                 "Correct Option": gemini_ans,
-                "Detailed Explanation": q.get('explanation', ''),
+                "Detailed Explanation": final_explanation, # <--- नवीन सविस्तर स्पष्टीकरण इथे जोडले आहे
                 "Smiles": q.get('smiles_code', ''), 
                 "Timestamp": timestamp
             }
@@ -419,7 +467,7 @@ if text_response:
         if len(rows_to_add) > 0:
             try:
                 supabase.table(TABLE_NAME).insert(rows_to_add).execute()
-                print(f"\n🎉 यशस्वी! {saved_count} १००% व्हेरीफाय झालेले प्रश्न Supabase मध्ये सेव्ह झाले. (रिजेक्टेड: {consensus_failed_count}, डुप्लिकेट: {duplicate_count}).")
+                print(f"\n🎉 यशस्वी! {saved_count} १००% व्हेरीफाय झालेले प्रश्न सविस्तर स्पष्टीकरणासह Supabase मध्ये सेव्ह झाले. (रिजेक्टेड: {consensus_failed_count}, डुप्लिकेट: {duplicate_count}).")
             except Exception as e:
                 print(f"\n❌ Supabase मध्ये सेव्ह करताना एरर आला: {e}")
         else:
