@@ -283,10 +283,10 @@ Which single option is correct? Return ONLY a valid JSON object strictly using a
         pass
     return None
 
-# 🚀 ----------------- DETAILED EXPLANATION GENERATOR -----------------
+# 🚀 ----------------- DETAILED EXPLANATION GENERATOR (STRICT) -----------------
 def get_detailed_explanation_from_openrouter(q_text, optA, optB, optC, optD, correct_ans):
     if not OPENROUTER_API_KEY:
-        return ""
+        raise Exception("CRITICAL ERROR: OPENROUTER_API_KEY is missing!")
     
     url = "https://openrouter.ai/api/v1/chat/completions"
     headers = {
@@ -306,24 +306,20 @@ Correct Answer is: {correct_ans}
 
 Explain the underlying core concept, clearly state why the correct option is the right choice, and briefly explain why the other options are incorrect. Make it easy for a student to understand. Keep it clean and formatted nicely using basic text. Use LaTeX formatting (e.g. $\\frac{{a}}{{b}}$) ONLY if math or chemical formulas are strictly necessary."""
 
-    # 🚀 बदल: येथे आपण OpenRouter चे कायमस्वरूपी मोफत असलेले DeepSeek V3 मॉडेल वापरत आहोत.
+    # 🚀 बदल: OpenRouter वरील १००% मोफत आणि शक्तिशाली मॉडेल (Google Gemma 2 9B)
     payload = {
-        "model": "deepseek/deepseek-chat:free", 
+        "model": "google/gemma-2-9b-it:free", 
         "messages": [{"role": "user", "content": explain_prompt}],
         "temperature": 0.3
     }
     
-    try:
-        res = requests.post(url, json=payload, headers=headers, timeout=20)
-        if res.status_code == 200:
-            data = res.json()
-            return data['choices'][0]['message']['content'].strip()
-        else:
-            print(f"⚠️ OpenRouter API Error: {res.text}")
-            return ""
-    except Exception as e:
-        return ""
-
+    res = requests.post(url, json=payload, headers=headers, timeout=20)
+    if res.status_code == 200:
+        data = res.json()
+        return data['choices'][0]['message']['content'].strip()
+    else:
+        # 🚨 Strict Halt: जर हे मॉडेल बंद पडले किंवा फेल झाले, तर थेट एरर थ्रो करेल आणि प्रोसेस थांबेल!
+        raise Exception(f"OpenRouter API Error/Crashed {res.status_code}: {res.text}")
 def get_detailed_explanation_from_gemini(q_text, optA, optB, optC, optD, correct_ans):
     url = f"https://generativelanguage.googleapis.com/v1beta/{VALID_GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY}"
     explain_prompt = f"""You are an expert NEET Biology/Chemistry/Physics tutor. Provide a highly detailed, conceptual, and step-by-step explanation for the following multiple-choice question.
