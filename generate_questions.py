@@ -198,22 +198,14 @@ current_q_count = chapter_counts.get(chapter, 0)
 print(f"आजचा विषय: {subject} - {chapter} | (आतापर्यंत {current_q_count}/{TARGET_QUESTIONS_PER_CHAPTER} प्रश्न कव्हर झाले आहेत)")
 
 # ----------------- ४. DYNAMIC GEMINI MODEL FETCHING -----------------
-def get_valid_gemini_model():
-    default_model = "models/gemini-1.5-flash-latest"
-    if not GEMINI_API_KEY: 
-        return default_model
-    try:
-        list_url = f"https://generativelanguage.googleapis.com/v1beta/models?key={GEMINI_API_KEY}"
-        models_data = requests.get(list_url).json()
-        if 'models' in models_data:
-            for model in models_data['models']:
-                if 'generateContent' in model.get('supportedGenerationMethods', []) and 'flash' in model['name']:
-                    return model['name']
-    except Exception:
-        pass
-    return default_model
+# ----------------- ४. GEMINI MODEL SETUP -----------------
+# 2026 च्या Google च्या नवीन पॉलिसीनुसार अपडेट केलेले मॉडेल
+VALID_GEMINI_MODEL = "models/gemini-3.6-flash"
 
-VALID_GEMINI_MODEL = get_valid_gemini_model()
+if not GEMINI_API_KEY: 
+    raise Exception("CRITICAL ERROR: GEMINI_API_KEY is missing! Halting process.")
+
+
 
 # ----------------- ५. PRIMARY PROMPT (GEMINI) -----------------
 prompt = f"""Generate exactly 20 UNIQUE multiple choice questions for NEET exam on Subject: '{subject}', Chapter: '{chapter}'. 
