@@ -4,6 +4,7 @@ import ast
 import requests
 import random
 import uuid
+import time # <--- Rate limit थांबवण्यासाठी नवीन लायब्ररी
 from datetime import datetime, timedelta
 from collections import Counter 
 from supabase import create_client, Client 
@@ -11,7 +12,7 @@ from supabase import create_client, Client
 # ----------------- API KEYS & SECRETS -----------------
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY") 
-OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY") # <--- OpenRouter Key
+OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY")
 
 # --- SUPABASE CREDENTIALS ---
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
@@ -197,15 +198,11 @@ topics = selected_topic["topics"]
 current_q_count = chapter_counts.get(chapter, 0)
 print(f"आजचा विषय: {subject} - {chapter} | (आतापर्यंत {current_q_count}/{TARGET_QUESTIONS_PER_CHAPTER} प्रश्न कव्हर झाले आहेत)")
 
-# ----------------- ४. DYNAMIC GEMINI MODEL FETCHING -----------------
 # ----------------- ४. GEMINI MODEL SETUP -----------------
-# 2026 च्या Google च्या नवीन पॉलिसीनुसार अपडेट केलेले मॉडेल
 VALID_GEMINI_MODEL = "models/gemini-3.6-flash"
 
 if not GEMINI_API_KEY: 
     raise Exception("CRITICAL ERROR: GEMINI_API_KEY is missing! Halting process.")
-
-
 
 # ----------------- ५. PRIMARY PROMPT (GEMINI) -----------------
 prompt = f"""Generate exactly 20 UNIQUE multiple choice questions for NEET exam on Subject: '{subject}', Chapter: '{chapter}'. 
@@ -224,21 +221,21 @@ RULES FOR SCORING & FORMAT:
 - Output strictly valid JSON without markdown formatting.
 """
 
-# ----------------- AI CALL FUNCTIONS -----------------
+# ----------------- AI CALL FUNCTIONS (STRICT FAILURES) -----------------
 def call_gemini():
     url = f"https://generativelanguage.googleapis.com/v1beta/{VALID_GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY}"
     payload = {"contents": [{"parts": [{"text": prompt}]}], "generationConfig": {"temperature": 0.7}}
     headers = {"Content-Type": "application/json"}
-    response = requests.post(url, json=payload, headers=headers)
     
+    response = requests.post(url, json=payload, headers=headers)
     if response.status_code != 200:
-        raise Exception(f"HTTP {response.status_code}: {response.text}")
+        raise Exception(f"Gemini API Crashed! HTTP {response.status_code}: {response.text}")
         
     data = response.json()
     if 'candidates' in data:
         return data['candidates'][0]['content']['parts'][0]['text']
     else:
-        raise Exception(f"Gemini API Error: {data}")
+        raise Exception(f"Gemini API returned invalid response: {data}")
 
 def standardize_option(ans_str):
     if not ans_str:
@@ -253,7 +250,9 @@ def standardize_option(ans_str):
 # ----------------- VERIFIER 2: GROQ -----------------
 def verify_with_groq(q_text, optA, optB, optC, optD):
     if not GROQ_API_KEY:
+        print("⚠️ GROQ_API_KEY missing, skipping Groq verification.")
         return None
+        
     url = "https://api.groq.com/openai/v1/chat/completions"
     headers = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
     
@@ -272,6 +271,7 @@ Which single option is correct? Return ONLY a valid JSON object strictly using a
         "temperature": 0.0,
         "response_format": {"type": "json_object"}
     }
+    
     try:
         res = requests.post(url, json=payload, headers=headers, timeout=15)
         if res.status_code == 200:
@@ -280,10 +280,10 @@ Which single option is correct? Return ONLY a valid JSON object strictly using a
             parsed = json.loads(content)
             return standardize_option(parsed.get('correctOption', ''))
     except Exception as e:
-        print(f"⚠️ Groq verification warning: {e}")
+        pass
     return None
 
-# 🚀 ----------------- DETAILED EXPLANATION CASCADE -----------------
+# 🚀 ----------------- DETAILED EXPLANATION GENERATOR -----------------
 def get_detailed_explanation_from_openrouter(q_text, optA, optB, optC, optD, correct_ans):
     if not OPENROUTER_API_KEY:
         return ""
@@ -306,8 +306,9 @@ Correct Answer is: {correct_ans}
 
 Explain the underlying core concept, clearly state why the correct option is the right choice, and briefly explain why the other options are incorrect. Make it easy for a student to understand. Keep it clean and formatted nicely using basic text. Use LaTeX formatting (e.g. $\\frac{{a}}{{b}}$) ONLY if math or chemical formulas are strictly necessary."""
 
+    # 🚀 बदल: येथे आपण OpenRouter चे कायमस्वरूपी मोफत असलेले DeepSeek V3 मॉडेल वापरत आहोत.
     payload = {
-        "model": "meta-llama/llama-3.3-70b-instruct:free", 
+        "model": "deepseek/deepseek-chat:free", 
         "messages": [{"role": "user", "content": explain_prompt}],
         "temperature": 0.3
     }
@@ -318,18 +319,13 @@ Explain the underlying core concept, clearly state why the correct option is the
             data = res.json()
             return data['choices'][0]['message']['content'].strip()
         else:
-            print(f"⚠️ OpenRouter Explanation API Error: {res.text}")
+            print(f"⚠️ OpenRouter API Error: {res.text}")
             return ""
     except Exception as e:
-        print(f"⚠️ Failed to get explanation from OpenRouter: {e}")
         return ""
 
 def get_detailed_explanation_from_gemini(q_text, optA, optB, optC, optD, correct_ans):
-    if not GEMINI_API_KEY:
-        return ""
-        
     url = f"https://generativelanguage.googleapis.com/v1beta/{VALID_GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY}"
-    
     explain_prompt = f"""You are an expert NEET Biology/Chemistry/Physics tutor. Provide a highly detailed, conceptual, and step-by-step explanation for the following multiple-choice question.
     
 Question: {q_text}
@@ -340,7 +336,7 @@ D) {optD}
 
 Correct Answer is: {correct_ans}
 
-Explain the underlying core concept, clearly state why the correct option is the right choice, and briefly explain why the other options are incorrect. Make it easy for a student to understand. Keep it clean and formatted nicely using basic text. Use LaTeX formatting (e.g. $\\frac{{a}}{{b}}$) ONLY if math or chemical formulas are strictly necessary."""
+Explain the underlying core concept, clearly state why the correct option is the right choice, and briefly explain why the other options are incorrect."""
 
     payload = {"contents": [{"parts": [{"text": explain_prompt}]}], "generationConfig": {"temperature": 0.3}}
     headers = {"Content-Type": "application/json"}
@@ -351,128 +347,118 @@ Explain the underlying core concept, clearly state why the correct option is the
             data = response.json()
             if 'candidates' in data and len(data['candidates']) > 0:
                 return data['candidates'][0]['content']['parts'][0]['text'].strip()
-        print(f"⚠️ Gemini Explanation API Error: {response.text}")
-        return ""
     except Exception as e:
-        print(f"⚠️ Failed to get explanation from Gemini: {e}")
-        return ""
+        pass
+    return ""
 
 # ----------------- ६. GENERATION & MULTI-AI VERIFICATION -----------------
 text_response = None
+rows_to_add = [] 
+saved_count = 0
+duplicate_count = 0
+consensus_failed_count = 0
 
 try:
     print("१. Gemini कडून प्राथमिक प्रश्न जनरेट करत आहे...")
     text_response = call_gemini()
     print("✅ Gemini कडून प्रश्न प्राप्त झाले!")
-except Exception as e:
-    print(f"❌ Gemini generation error: {e}")
-    exit()
+    
+    start_idx = text_response.find('[')
+    end_idx = text_response.rfind(']')
+    if start_idx != -1 and end_idx != -1:
+        clean_string = text_response[start_idx:end_idx+1]
+        questions = ast.literal_eval(clean_string)
+    else:
+        raise ValueError("AI च्या उत्तरात JSON Array सापडला नाही.")
 
-if text_response:
-    try:
-        start_idx = text_response.find('[')
-        end_idx = text_response.rfind(']')
-        if start_idx != -1 and end_idx != -1:
-            clean_string = text_response[start_idx:end_idx+1]
-            questions = ast.literal_eval(clean_string)
-        else:
-            raise ValueError("AI च्या उत्तरात JSON Array सापडला नाही.")
+    ist_time = datetime.utcnow() + timedelta(hours=5, minutes=30)
+    timestamp = ist_time.strftime("%Y-%m-%d %H:%M:%S")
 
-        ist_time = datetime.utcnow() + timedelta(hours=5, minutes=30)
-        timestamp = ist_time.strftime("%Y-%m-%d %H:%M:%S")
-
-        saved_count = 0
-        duplicate_count = 0
-        consensus_failed_count = 0
-        rows_to_add = [] 
-
-        print("\n🔍 --- MULTI-AI VERIFICATION STARTED (Gemini ➔ Groq) ---")
+    print("\n🔍 --- MULTI-AI VERIFICATION STARTED (Gemini ➔ Groq ➔ OpenRouter) ---")
+    
+    for idx, q in enumerate(questions, 1):
+        # 🚀 Rate Limit वाचवण्यासाठी प्रत्येक प्रश्नानंतर ४ सेकंद थांबवणे
+        time.sleep(4) 
         
-        for idx, q in enumerate(questions, 1):
-            q_text = q.get('question', '').strip()
-            optA = q.get('optionA', '').strip()
-            optB = q.get('optionB', '').strip()
-            optC = q.get('optionC', '').strip()
-            optD = q.get('optionD', '').strip()
-            
-            gemini_ans = standardize_option(q.get('correctOption', ''))
+        q_text = q.get('question', '').strip()
+        optA = q.get('optionA', '').strip()
+        optB = q.get('optionB', '').strip()
+        optC = q.get('optionC', '').strip()
+        optD = q.get('optionD', '').strip()
+        
+        gemini_ans = standardize_option(q.get('correctOption', ''))
 
-            if not q_text or q_text in existing_questions_list:
-                duplicate_count += 1
-                continue 
+        if not q_text or q_text in existing_questions_list:
+            duplicate_count += 1
+            continue 
 
-            # Quality Score Check (> 85)
-            scores = q.get('quality_score', {})
-            overall = float(scores.get('overall_score', 0)) if isinstance(scores, dict) else 0
-            if overall < 85 and overall != 0:
-                print(f"❌ Q{idx}: Reject (Low Quality Score: {overall})")
-                continue
+        scores = q.get('quality_score', {})
+        overall = float(scores.get('overall_score', 0)) if isinstance(scores, dict) else 0
+        if overall < 85 and overall != 0:
+            print(f"❌ Q{idx}: Reject (Low Quality Score: {overall})")
+            continue
 
-            # --- VERIFICATION STEP 1: GROQ ---
-            groq_ans = verify_with_groq(q_text, optA, optB, optC, optD)
-            
-            # --- CONSENSUS VERIFIER ---
-            is_approved = False
-            
-            if groq_ans:
-                if gemini_ans == groq_ans:
-                    print(f"✅ Q{idx}: [2/2 MATCH!] (Gemini: {gemini_ans} | Groq: {groq_ans}) -> APPROVED")
-                    is_approved = True
-                else:
-                    print(f"❌ Q{idx}: [REJECTED - Disagreement] (Gemini: {gemini_ans} | Groq: {groq_ans})")
-                    consensus_failed_count += 1
-                    continue
+        print(f"   ⏳ Q{idx}: Groq कडून पडताळणी करत आहे...")
+        groq_ans = verify_with_groq(q_text, optA, optB, optC, optD) 
+        
+        if groq_ans:
+            if gemini_ans == groq_ans:
+                print(f"✅ Q{idx}: [2/2 MATCH!] (Gemini: {gemini_ans} | Groq: {groq_ans}) -> APPROVED")
             else:
-                print(f"⚠️ Q{idx}: Skipped Verification (Groq Key Missing or API Error)")
-                is_approved = True
-
-            # 🚀 --- FETCH DETAILED EXPLANATION IF QUESTION IS APPROVED ---
-            final_explanation = q.get('explanation', '') 
-            
-            if is_approved:
-                print(f"   ⏳ OpenRouter कडून सविस्तर स्पष्टीकरण घेत आहे...")
-                detailed_explanation = get_detailed_explanation_from_openrouter(q_text, optA, optB, optC, optD, gemini_ans)
-                
-                # Fallback to Gemini if OpenRouter fails
-                if not detailed_explanation:
-                    print(f"   ⚠️ OpenRouter फेल झाले. Gemini कडून सविस्तर स्पष्टीकरण घेत आहे...")
-                    detailed_explanation = get_detailed_explanation_from_gemini(q_text, optA, optB, optC, optD, gemini_ans)
-                
-                if detailed_explanation:
-                    final_explanation = detailed_explanation
-
-            # --- PREPARE FOR SUPABASE ---
-            q_id = f"{subject[:3].upper()}-{uuid.uuid4().hex[:6].upper()}"
-            
-            row = {
-                "Question ID": q_id,
-                "Subject": subject,
-                "Chapter": chapter,
-                "Question": q_text,
-                "Option A": optA,
-                "Option B": optB,
-                "Option C": optC,
-                "Option D": optD,
-                "Correct Option": gemini_ans,
-                "Detailed Explanation": final_explanation,
-                "Smiles": q.get('smiles_code', ''), 
-                "Image Reference": q.get('image_reference', ''), 
-                "Timestamp": timestamp
-            }
-            rows_to_add.append(row)
-            saved_count += 1
-
-        # ----------------- ७. SAVING TO SUPABASE -----------------
-        if len(rows_to_add) > 0:
-            try:
-                supabase.table(TABLE_NAME).insert(rows_to_add).execute()
-                print(f"\n🎉 यशस्वी! {saved_count} १००% व्हेरीफाय झालेले प्रश्न सविस्तर स्पष्टीकरणासह Supabase मध्ये सेव्ह झाले. (रिजेक्टेड: {consensus_failed_count}, डुप्लिकेट: {duplicate_count}).")
-            except Exception as e:
-                print(f"\n❌ Supabase मध्ये सेव्ह करताना एरर आला: {e}")
+                print(f"❌ Q{idx}: [REJECTED - Disagreement] (Gemini: {gemini_ans} | Groq: {groq_ans})")
+                consensus_failed_count += 1
+                continue
         else:
-            print(f"\n⚠️ कोणतेही नवीन प्रश्न सेव्ह झाले नाहीत. (रिजेक्ट: {consensus_failed_count}, डुप्लिकेट: {duplicate_count}).")
+            print(f"⚠️ Q{idx}: Skipped Verification (Groq Unavailable)")
 
-    except Exception as e:
-        print(f"❌ Error during execution: {e}")
-        print("\n--- Raw Response ---")
-        print(text_response)
+        print(f"   ⏳ Q{idx}: OpenRouter कडून सविस्तर स्पष्टीकरण घेत आहे...")
+        final_explanation = get_detailed_explanation_from_openrouter(q_text, optA, optB, optC, optD, gemini_ans)
+
+        if not final_explanation:
+            print(f"   ⚠️ OpenRouter फेल झाले. Gemini कडून सविस्तर स्पष्टीकरण घेत आहे...")
+            final_explanation = get_detailed_explanation_from_gemini(q_text, optA, optB, optC, optD, gemini_ans)
+
+        if not final_explanation:
+            final_explanation = q.get('explanation', '') # Fallback to original short explanation
+
+        q_id = f"{subject[:3].upper()}-{uuid.uuid4().hex[:6].upper()}"
+        
+        row = {
+            "Question ID": q_id,
+            "Subject": subject,
+            "Chapter": chapter,
+            "Question": q_text,
+            "Option A": optA,
+            "Option B": optB,
+            "Option C": optC,
+            "Option D": optD,
+            "Correct Option": gemini_ans,
+            "Detailed Explanation": final_explanation,
+            "Smiles": q.get('smiles_code', ''), 
+            "Image Reference": q.get('image_reference', ''), 
+            "Timestamp": timestamp
+        }
+        rows_to_add.append(row)
+        saved_count += 1
+
+    # ----------------- ७. SAVING TO SUPABASE -----------------
+    if len(rows_to_add) > 0:
+        try:
+            supabase.table(TABLE_NAME).insert(rows_to_add).execute()
+            print(f"\n🎉 यशस्वी! {saved_count} १००% व्हेरीफाय झालेले प्रश्न सविस्तर स्पष्टीकरणासह Supabase मध्ये सेव्ह झाले. (रिजेक्टेड: {consensus_failed_count}, डुप्लिकेट: {duplicate_count}).")
+        except Exception as e:
+            print(f"\n❌ Supabase मध्ये सेव्ह करताना एरर आला: {e}")
+            exit(1)
+    else:
+        print(f"\n⚠️ कोणतेही नवीन प्रश्न सेव्ह झाले नाहीत. (रिजेक्ट: {consensus_failed_count}, डुप्लिकेट: {duplicate_count}).")
+
+except Exception as e:
+    print(f"\n🚨 CRITICAL ERROR: {e}")
+    if len(rows_to_add) > 0:
+        print(f"💾 क्रॅश होण्यापूर्वी तयार झालेले {len(rows_to_add)} प्रश्न सेव्ह करत आहे...")
+        try:
+            supabase.table(TABLE_NAME).insert(rows_to_add).execute()
+            print("✅ वाचवलेले प्रश्न यशस्वीरित्या सेव्ह झाले!")
+        except Exception as save_err:
+            print(f"❌ वाचवलेले प्रश्न सेव्ह करताना एरर आला: {save_err}")
+    exit(1)
