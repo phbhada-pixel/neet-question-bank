@@ -286,7 +286,7 @@ Which single option is correct? Return ONLY a valid JSON object strictly using a
 # 🚀 ----------------- DETAILED EXPLANATION GENERATOR (STRICT + AUTO-FALLBACK) -----------------
 def get_detailed_explanation_from_openrouter(q_text, optA, optB, optC, optD, correct_ans):
     if not OPENROUTER_API_KEY:
-        raise Exception("CRITICAL ERROR: OPENROUTER_API_KEY is missing!")
+        return "" # Key नसेल तर क्रॅश न करता सरळ रिकामे पाठवा (म्हणजे Gemini काम करेल)
     
     url = "https://openrouter.ai/api/v1/chat/completions"
     headers = {
@@ -306,7 +306,6 @@ Correct Answer is: {correct_ans}
 
 Explain the underlying core concept, clearly state why the correct option is the right choice, and briefly explain why the other options are incorrect. Make it easy for a student to understand. Keep it clean and formatted nicely using basic text. Use LaTeX formatting (e.g. $\\frac{{a}}{{b}}$) ONLY if math or chemical formulas are strictly necessary."""
 
-    # 🚀 बदल: ४ सर्वात शक्तिशाली आणि कायमस्वरूपी मोफत मॉडेल्सची लिस्ट
     free_models = [
         "meta-llama/llama-3.1-8b-instruct:free",
         "qwen/qwen-2.5-7b-instruct:free",
@@ -316,7 +315,6 @@ Explain the underlying core concept, clearly state why the correct option is the
     
     last_error = ""
     
-    # एक मॉडेल बंद असल्यास आपोआप दुसरे मॉडेल ट्राय करेल
     for model_name in free_models:
         payload = {
             "model": model_name, 
@@ -328,18 +326,18 @@ Explain the underlying core concept, clearly state why the correct option is the
             res = requests.post(url, json=payload, headers=headers, timeout=20)
             if res.status_code == 200:
                 data = res.json()
-                # यशस्वी झाल्यास उत्तर पाठवा आणि लूप थांबवा
                 return data['choices'][0]['message']['content'].strip()
             else:
                 last_error = f"{res.status_code}: {res.text}"
-                print(f"   ⚠️ Model '{model_name}' डाऊन आहे. पुढचे मोफत मॉडेल ट्राय करत आहे...")
+                print(f"   ⚠️ Model '{model_name}' डाऊन आहे. पुढचे ट्राय करत आहे...")
         except Exception as e:
             last_error = str(e)
-            print(f"   ⚠️ Model '{model_name}' Timeout. पुढचे मोफत मॉडेल ट्राय करत आहे...")
+            print(f"   ⚠️ Model '{model_name}' Timeout. पुढचे ट्राय करत आहे...")
             
-    # जर चारही मॉडेल्स फेल झाले, तरच Strict Error थ्रो करेल आणि प्रोसेस थांबवेल!
-    raise Exception(f"OpenRouter API Error: All free models failed! Last Error: {last_error}")
-
+    # 🚨 बदल: येथे क्रॅश (raise Exception) करण्याऐवजी रिकामी स्ट्रिंग पाठवा.
+    # यामुळे मुख्य लूपला समजेल की OpenRouter फेल झाले आहे, आणि तो आपोआप Gemini चा वापर करेल!
+    print(f"   ❌ OpenRouter चे सर्व फ्री मॉडेल्स सध्या व्यस्त आहेत.")
+    return ""
 
 
 def get_detailed_explanation_from_gemini(q_text, optA, optB, optC, optD, correct_ans):
