@@ -28,5 +28,6 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         # ही कमांड फाईल रन करेल (तुमच्या फाईलचे नाव generate_questions.py आहे असे गृहीत धरले आहे)
         run: python generate_questions.py
