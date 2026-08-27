@@ -165,7 +165,7 @@ for topic in remaining_syllabus:
         chapter_weights.append(5 if subj_name == "Zoology" else (4 if subj_name == "Botany" else 3))
 
 # --- SUPABASE BOT CONTROL CHECK ---
-print("बॉटचा डॅशबोर्डवरील कंट्रोल मोड तपासत আপাতত आहे...")
+print("बॉटचा डॅशबोर्डवरील कंट्रोल मोड तपासत आहे...")
 try:
     control_response = supabase.table("bot_control").select("*").eq("id", 1).execute()
     bot_mode = control_response.data[0]['mode']
@@ -199,7 +199,8 @@ current_q_count = chapter_counts.get(chapter, 0)
 print(f"आजचा विषय: {subject} - {chapter} | (आतापर्यंत {current_q_count}/{TARGET_QUESTIONS_PER_CHAPTER} प्रश्न कव्हर झाले आहेत)")
 
 # ----------------- ४. GEMINI MODEL SETUP -----------------
-VALID_GEMINI_MODEL = "models/gemini-1.5-flash-latest"
+# 🚀 हा सर्वात महत्वाचा फिक्स आहे (४०४ एरर दूर करण्यासाठी)
+VALID_GEMINI_MODEL = "models/gemini-3.6-flash"
 
 if not GEMINI_API_KEY: 
     raise Exception("CRITICAL ERROR: GEMINI_API_KEY is missing! Halting process.")
@@ -336,7 +337,6 @@ Explain the underlying core concept, clearly state why the correct option is the
             
     print(f"   ❌ OpenRouter चे सर्व फ्री मॉडेल्स सध्या व्यस्त आहेत.")
     return ""
-
 
 def get_detailed_explanation_from_gemini(q_text, optA, optB, optC, optD, correct_ans):
     url = f"https://generativelanguage.googleapis.com/v1beta/{VALID_GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY}"
