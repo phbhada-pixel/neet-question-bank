@@ -4,7 +4,7 @@ import ast
 import requests
 import random
 import uuid
-import time # <--- Rate limit थांबवण्यासाठी नवीन लायब्ररी
+import time # <--- Rate limit थांबवण्यासाठी
 from datetime import datetime, timedelta
 from collections import Counter 
 from supabase import create_client, Client 
@@ -165,7 +165,7 @@ for topic in remaining_syllabus:
         chapter_weights.append(5 if subj_name == "Zoology" else (4 if subj_name == "Botany" else 3))
 
 # --- SUPABASE BOT CONTROL CHECK ---
-print("बॉटचा डॅशबोर्डवरील कंट्रोल मोड तपासत आहे...")
+print("बॉटचा डॅशबोर्डवरील कंट्रोल मोड तपासत আপাতত आहे...")
 try:
     control_response = supabase.table("bot_control").select("*").eq("id", 1).execute()
     bot_mode = control_response.data[0]['mode']
@@ -199,7 +199,7 @@ current_q_count = chapter_counts.get(chapter, 0)
 print(f"आजचा विषय: {subject} - {chapter} | (आतापर्यंत {current_q_count}/{TARGET_QUESTIONS_PER_CHAPTER} प्रश्न कव्हर झाले आहेत)")
 
 # ----------------- ४. GEMINI MODEL SETUP -----------------
-VALID_GEMINI_MODEL = "models/gemini-3.6-flash"
+VALID_GEMINI_MODEL = "models/gemini-1.5-flash-latest"
 
 if not GEMINI_API_KEY: 
     raise Exception("CRITICAL ERROR: GEMINI_API_KEY is missing! Halting process.")
@@ -286,7 +286,7 @@ Which single option is correct? Return ONLY a valid JSON object strictly using a
 # 🚀 ----------------- DETAILED EXPLANATION GENERATOR (STRICT + AUTO-FALLBACK) -----------------
 def get_detailed_explanation_from_openrouter(q_text, optA, optB, optC, optD, correct_ans):
     if not OPENROUTER_API_KEY:
-        return "" # Key नसेल तर क्रॅश न करता सरळ रिकामे पाठवा (म्हणजे Gemini काम करेल)
+        return "" 
     
     url = "https://openrouter.ai/api/v1/chat/completions"
     headers = {
@@ -334,8 +334,6 @@ Explain the underlying core concept, clearly state why the correct option is the
             last_error = str(e)
             print(f"   ⚠️ Model '{model_name}' Timeout. पुढचे ट्राय करत आहे...")
             
-    # 🚨 बदल: येथे क्रॅश (raise Exception) करण्याऐवजी रिकामी स्ट्रिंग पाठवा.
-    # यामुळे मुख्य लूपला समजेल की OpenRouter फेल झाले आहे, आणि तो आपोआप Gemini चा वापर करेल!
     print(f"   ❌ OpenRouter चे सर्व फ्री मॉडेल्स सध्या व्यस्त आहेत.")
     return ""
 
