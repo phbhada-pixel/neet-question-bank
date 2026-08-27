@@ -11,7 +11,7 @@ from supabase import create_client, Client
 # ----------------- API KEYS & SECRETS -----------------
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY") 
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY") # <--- OpenRouter Key
 
 # --- SUPABASE CREDENTIALS ---
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
@@ -37,6 +37,7 @@ except Exception as e:
 # ----------------- २. NEET सिलॅबस -----------------
 syllabus = [
     # --- PHYSICS ---
+    {"subject": "Physics", "chapter": "Vectors and Scalars", "topics": "Scalars and Vectors, Position and displacement vectors, general vectors and their notations, equality of vectors, multiplication of vectors by a real number, addition and subtraction of vectors, Unit vector, resolution of a vector in a plane, scalar and vector product of vectors."},
     {"subject": "Physics", "chapter": "Physics and Measurement", "topics": "Units of measurements, System of Units, SI Units, fundamental and derived units, least count, significant figures, Errors in measurements, Dimensions of Physics quantities, dimensional analysis."},
     {"subject": "Physics", "chapter": "Kinematics", "topics": "Frame of reference, motion in a straight line, Position-time graph, speed, velocity, Uniform and non-uniform motion, average speed, instantaneous velocity, uniformly accelerated motion, Scalars and Vectors, Relative Velocity, Motion in a plane, Projectile Motion, Uniform Circular Motion."},
     {"subject": "Physics", "chapter": "Laws of Motion", "topics": "Force and inertia, Newton's First, Second and Third Law of motion, Momentum, Impulses, Law of conservation of linear momentum, Equilibrium of concurrent forces, Static and Kinetic friction, rolling friction, Dynamics of uniform circular motion."},
@@ -196,34 +197,44 @@ topics = selected_topic["topics"]
 current_q_count = chapter_counts.get(chapter, 0)
 print(f"आजचा विषय: {subject} - {chapter} | (आतापर्यंत {current_q_count}/{TARGET_QUESTIONS_PER_CHAPTER} प्रश्न कव्हर झाले आहेत)")
 
-# ----------------- ४. PRIMARY PROMPT (GEMINI) -----------------
+# ----------------- ४. DYNAMIC GEMINI MODEL FETCHING -----------------
+def get_valid_gemini_model():
+    default_model = "models/gemini-1.5-flash-latest"
+    if not GEMINI_API_KEY: 
+        return default_model
+    try:
+        list_url = f"https://generativelanguage.googleapis.com/v1beta/models?key={GEMINI_API_KEY}"
+        models_data = requests.get(list_url).json()
+        if 'models' in models_data:
+            for model in models_data['models']:
+                if 'generateContent' in model.get('supportedGenerationMethods', []) and 'flash' in model['name']:
+                    return model['name']
+    except Exception:
+        pass
+    return default_model
+
+VALID_GEMINI_MODEL = get_valid_gemini_model()
+
+# ----------------- ५. PRIMARY PROMPT (GEMINI) -----------------
 prompt = f"""Generate exactly 20 UNIQUE multiple choice questions for NEET exam on Subject: '{subject}', Chapter: '{chapter}'. 
 STRICTLY base all questions ONLY on topics: {topics}. 
+Ensure at least 2-3 questions are Diagram/Image based, referencing standard NCERT figures if applicable.
 
 Return ONLY a valid JSON array of objects. 
-Keys must be exactly: 'question', 'optionA', 'optionB', 'optionC', 'optionD', 'correctOption', 'explanation', 'quality_score', 'smiles_code'.
+Keys must be exactly: 'question', 'optionA', 'optionB', 'optionC', 'optionD', 'correctOption', 'explanation', 'quality_score', 'smiles_code', 'image_reference'.
 
 RULES FOR SCORING & FORMAT:
 - 'correctOption' MUST be strictly a SINGLE LETTER: "A", "B", "C", or "D". Do not write 'Option A' or the full answer text.
 - 'quality_score' MUST be an object with key 'overall_score' (0-100).
 - For MATHEMATICS/SCIENCE formulas use LaTeX (double-escaped like $\\\\frac{{a}}{{b}}$).
-- CHEMISTRY STRUCTURES: If the question involves an organic chemistry structure that needs to be visualized, provide its correct SMILES code in the 'smiles_code' key (e.g., "CC(=O)C"). If no structure is needed, leave it as an empty string "".
+- CHEMISTRY STRUCTURES: Provide SMILES code in 'smiles_code' key. If none, leave "".
+- DIAGRAM QUESTIONS: If a question requires an NCERT figure, provide its standard name (e.g., 'Fig_10.1_Cell_Cycle.jpg') in 'image_reference'. If no image is needed, leave "".
 - Output strictly valid JSON without markdown formatting.
 """
 
 # ----------------- AI CALL FUNCTIONS -----------------
 def call_gemini():
-    list_url = f"https://generativelanguage.googleapis.com/v1beta/models?key={GEMINI_API_KEY}"
-    models_data = requests.get(list_url).json()
-    valid_model_name = "models/gemini-1.5-flash" 
-    
-    if 'models' in models_data:
-        for model in models_data['models']:
-            if 'generateContent' in model.get('supportedGenerationMethods', []) and 'flash' in model['name']:
-                valid_model_name = model['name']
-                break
-
-    url = f"https://generativelanguage.googleapis.com/v1beta/{valid_model_name}:generateContent?key={GEMINI_API_KEY}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/{VALID_GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY}"
     payload = {"contents": [{"parts": [{"text": prompt}]}], "generationConfig": {"temperature": 0.7}}
     headers = {"Content-Type": "application/json"}
     response = requests.post(url, json=payload, headers=headers)
@@ -280,13 +291,16 @@ Which single option is correct? Return ONLY a valid JSON object strictly using a
         print(f"⚠️ Groq verification warning: {e}")
     return None
 
-# 🚀 ----------------- NEW: GROQ DETAILED EXPLANATION GENERATOR -----------------
-def get_detailed_explanation_from_groq(q_text, optA, optB, optC, optD, correct_ans):
-    if not GROQ_API_KEY:
+# 🚀 ----------------- DETAILED EXPLANATION CASCADE -----------------
+def get_detailed_explanation_from_openrouter(q_text, optA, optB, optC, optD, correct_ans):
+    if not OPENROUTER_API_KEY:
         return ""
     
-    url = "https://api.groq.com/openai/v1/chat/completions"
-    headers = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
+    url = "https://openrouter.ai/api/v1/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {OPENROUTER_API_KEY}", 
+        "Content-Type": "application/json"
+    }
     
     explain_prompt = f"""You are an expert NEET Biology/Chemistry/Physics tutor. Provide a highly detailed, conceptual, and step-by-step explanation for the following multiple-choice question.
     
@@ -301,7 +315,7 @@ Correct Answer is: {correct_ans}
 Explain the underlying core concept, clearly state why the correct option is the right choice, and briefly explain why the other options are incorrect. Make it easy for a student to understand. Keep it clean and formatted nicely using basic text. Use LaTeX formatting (e.g. $\\frac{{a}}{{b}}$) ONLY if math or chemical formulas are strictly necessary."""
 
     payload = {
-        "model": "llama-3.3-70b-versatile", # Groq चे सर्वात शक्तिशाली मॉडेल स्पष्टीकरणासाठी
+        "model": "meta-llama/llama-3.3-70b-instruct:free", 
         "messages": [{"role": "user", "content": explain_prompt}],
         "temperature": 0.3
     }
@@ -312,18 +326,17 @@ Explain the underlying core concept, clearly state why the correct option is the
             data = res.json()
             return data['choices'][0]['message']['content'].strip()
         else:
-            print(f"⚠️ Groq Explanation API Error: {res.text}")
+            print(f"⚠️ OpenRouter Explanation API Error: {res.text}")
             return ""
     except Exception as e:
-        print(f"⚠️ Failed to get explanation from Groq: {e}")
+        print(f"⚠️ Failed to get explanation from OpenRouter: {e}")
         return ""
 
-# 🚀 ----------------- NEW: GEMINI FALLBACK EXPLANATION GENERATOR -----------------
 def get_detailed_explanation_from_gemini(q_text, optA, optB, optC, optD, correct_ans):
     if not GEMINI_API_KEY:
         return ""
         
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/{VALID_GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY}"
     
     explain_prompt = f"""You are an expert NEET Biology/Chemistry/Physics tutor. Provide a highly detailed, conceptual, and step-by-step explanation for the following multiple-choice question.
     
@@ -352,7 +365,7 @@ Explain the underlying core concept, clearly state why the correct option is the
         print(f"⚠️ Failed to get explanation from Gemini: {e}")
         return ""
 
-# ----------------- ५. GENERATION & MULTI-AI VERIFICATION -----------------
+# ----------------- ६. GENERATION & MULTI-AI VERIFICATION -----------------
 text_response = None
 
 try:
@@ -381,7 +394,7 @@ if text_response:
         consensus_failed_count = 0
         rows_to_add = [] 
 
-        print("\n🔍 --- MULTI-AI VERIFICATION STARTED (Gemini ➔ Groq ➔ GPT) ---")
+        print("\n🔍 --- MULTI-AI VERIFICATION STARTED (Gemini ➔ Groq) ---")
         
         for idx, q in enumerate(questions, 1):
             q_text = q.get('question', '').strip()
@@ -418,19 +431,19 @@ if text_response:
                     consensus_failed_count += 1
                     continue
             else:
-                print(f"⚠️ Q{idx}: Skipped Verification (Groq Key Missing)")
+                print(f"⚠️ Q{idx}: Skipped Verification (Groq Key Missing or API Error)")
                 is_approved = True
 
             # 🚀 --- FETCH DETAILED EXPLANATION IF QUESTION IS APPROVED ---
             final_explanation = q.get('explanation', '') 
             
             if is_approved:
-                print(f"   ⏳ Groq (Llama-3) कडून सविस्तर स्पष्टीकरण घेत आहे...")
-                detailed_explanation = get_detailed_explanation_from_groq(q_text, optA, optB, optC, optD, gemini_ans)
+                print(f"   ⏳ OpenRouter कडून सविस्तर स्पष्टीकरण घेत आहे...")
+                detailed_explanation = get_detailed_explanation_from_openrouter(q_text, optA, optB, optC, optD, gemini_ans)
                 
-                # जर Groq फेल झाले, तर Fallback म्हणून Gemini कडून स्पष्टीकरण घेणे
+                # Fallback to Gemini if OpenRouter fails
                 if not detailed_explanation:
-                    print(f"   ⚠️ Groq फेल झाले. Gemini कडून सविस्तर स्पष्टीकरण घेत आहे...")
+                    print(f"   ⚠️ OpenRouter फेल झाले. Gemini कडून सविस्तर स्पष्टीकरण घेत आहे...")
                     detailed_explanation = get_detailed_explanation_from_gemini(q_text, optA, optB, optC, optD, gemini_ans)
                 
                 if detailed_explanation:
@@ -451,12 +464,13 @@ if text_response:
                 "Correct Option": gemini_ans,
                 "Detailed Explanation": final_explanation,
                 "Smiles": q.get('smiles_code', ''), 
+                "Image Reference": q.get('image_reference', ''), 
                 "Timestamp": timestamp
             }
             rows_to_add.append(row)
             saved_count += 1
 
-        # ----------------- ६. SAVING TO SUPABASE -----------------
+        # ----------------- ७. SAVING TO SUPABASE -----------------
         if len(rows_to_add) > 0:
             try:
                 supabase.table(TABLE_NAME).insert(rows_to_add).execute()
