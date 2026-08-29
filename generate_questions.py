@@ -206,6 +206,7 @@ current_q_count = chapter_counts.get(chapter, 0)
 print(f"आजचा विषय: {subject} - {chapter} | (आतापर्यंत {current_q_count}/{TARGET_QUESTIONS_PER_CHAPTER} प्रश्न कव्हर झाले आहेत)")
 
 # ----------------- ४. GEMINI MODEL SETUP -----------------
+# 🚀 हा सर्वात महत्वाचा फिक्स आहे (४०४ एरर दूर करण्यासाठी)
 VALID_GEMINI_MODEL = "models/gemini-3.6-flash"
 
 if not GEMINI_API_KEY: 
@@ -228,7 +229,7 @@ RULES FOR SCORING & FORMAT:
 - Output strictly valid JSON without markdown formatting.
 """
 
-# ----------------- AI CALL FUNCTIONS -----------------
+# ----------------- AI CALL FUNCTIONS (STRICT FAILURES) -----------------
 def call_gemini():
     url = f"https://generativelanguage.googleapis.com/v1beta/{VALID_GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY}"
     payload = {"contents": [{"parts": [{"text": prompt}]}], "generationConfig": {"temperature": 0.7}}
@@ -254,15 +255,63 @@ def standardize_option(ans_str):
     if "D" in ans: return "D"
     return ans
 
-# ----------------- VERIFIER 2: GROQ (WITH DIAGNOSTICS) -----------------
+# ----------------- GROQ DYNAMIC MODEL SETUP -----------------
+VALID_GROQ_MODEL = None
+GROQ_DISABLED_FOR_BATCH = False # 🚀 नवीन ग्लोबल स्विच (एरर आल्यास Groq थांबवण्यासाठी)
+
+def get_valid_groq_model():
+    global VALID_GROQ_MODEL, GROQ_DISABLED_FOR_BATCH
+    if VALID_GROQ_MODEL: 
+        return VALID_GROQ_MODEL 
+        
+    if not GROQ_API_KEY: 
+        GROQ_DISABLED_FOR_BATCH = True
+        return "llama-3.1-8b-instant"
+        
+    headers = {"Authorization": f"Bearer {GROQ_API_KEY}"}
+    preferred_models = ["llama-3.1-8b-instant", "llama3-8b-8192", "mixtral-8x7b-32768", "gemma2-9b-it"]
+    
+    try:
+        print("   🔎 Groq चे उपलब्ध मॉडेल्स तपासत आहे...")
+        res = requests.get("https://api.groq.com/openai/v1/models", headers=headers, timeout=10)
+        
+        if res.status_code == 200:
+            available_models = [m['id'] for m in res.json().get('data', [])]
+            for pref in preferred_models:
+                if pref in available_models:
+                    print(f"   ✅ Groq साठी योग्य मॉडेल सापडले: {pref}")
+                    VALID_GROQ_MODEL = pref
+                    return pref
+            if available_models:
+                VALID_GROQ_MODEL = available_models[0]
+                return available_models[0]
+        else:
+            print(f"   ❌ Groq Models Fetch Error: {res.status_code}")
+            if res.status_code in [401, 403, 404]: 
+                GROQ_DISABLED_FOR_BATCH = True # 🚀 जर सुरवातीलाच एरर आला, तर Groq कायमचा बंद
+                
+    except Exception as e:
+        print(f"   ❌ Groq Models Fetch Error: {e}")
+        
+    VALID_GROQ_MODEL = "llama-3.1-8b-instant"
+    return VALID_GROQ_MODEL
+
+# ----------------- VERIFIER 2: GROQ (SMART VERIFICATION) -----------------
 def verify_with_groq(q_text, optA, optB, optC, optD):
-    if not GROQ_API_KEY:
-        print("⚠️ GROQ_API_KEY missing, skipping Groq verification.")
+    global GROQ_DISABLED_FOR_BATCH
+    
+    # 🚀 जर मागच्या प्रश्नात Groq फेल झाले असेल, तर थेट बायपास करा!
+    if GROQ_DISABLED_FOR_BATCH or not GROQ_API_KEY:
+        print("   ⚠️ Groq Verification Skipped (Disabled due to previous error).")
         return None
         
     url = "https://api.groq.com/openai/v1/chat/completions"
     headers = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
+    selected_model = get_valid_groq_model()
     
+    if GROQ_DISABLED_FOR_BATCH: # मॉडेल चेक करताना एरर आला असेल तर पुन्हा चेक
+        return None
+
     verify_prompt = f"""You are an expert NEET Exam Verifier. Solve this question independently.
 Question: {q_text}
 A) {optA}
@@ -273,21 +322,25 @@ D) {optD}
 Which single option is correct? Return ONLY a valid JSON object strictly using a single letter: {{"correctOption": "A"}} (or B/C/D). Do not write 'Option A' or the full answer text."""
     
     payload = {
-        "model": "llama-3.1-8b-instant",
+        "model": selected_model,
         "messages": [{"role": "user", "content": verify_prompt}],
         "temperature": 0.0,
         "response_format": {"type": "json_object"}
     }
     
     try:
-        print("   🔎 Groq API call सुरू...")
+        print(f"   🔎 Groq ({selected_model}) कडून पडताळणी सुरू...")
         response = requests.post(url, json=payload, headers=headers, timeout=15)
         
         if response.status_code != 200:
-            print(f"   🔎 Groq HTTP Status: {response.status_code}")
-            print(f"   🔎 Groq Response: {response.text[:2000]}")
+            print(f"   ❌ Groq HTTP Status: {response.status_code}")
             
-        response.raise_for_status()
+            # 🚀 सर्वात महत्त्वाचे लॉजिक: जर 404 (Model not found) किंवा 401/403 आला, तर Groq कायमचे बंद करा
+            if response.status_code in [404, 401, 403]:
+                print("   🚨 Critical Groq Error! पुढील सर्व प्रश्नांसाठी Groq पडताळणी थांबवत आहे (Disabled).")
+                GROQ_DISABLED_FOR_BATCH = True
+                
+            response.raise_for_status()
         
         data = response.json()
         content = data['choices'][0]['message']['content']
@@ -295,21 +348,11 @@ Which single option is correct? Return ONLY a valid JSON object strictly using a
         return standardize_option(parsed.get('correctOption', ''))
         
     except requests.exceptions.HTTPError as e:
-        print("   ❌ GROQ HTTP ERROR")
-        print(f"   Status Code: {response.status_code}")
-        print(f"   Response: {response.text[:2000]}")
-        print(f"   Error: {e}")
+        print(f"   ❌ GROQ HTTP ERROR: {e}")
     except requests.exceptions.Timeout as e:
-        print("   ❌ GROQ TIMEOUT ERROR")
-        print(f"   Error: {e}")
-    except requests.exceptions.RequestException as e:
-        print("   ❌ GROQ REQUEST ERROR")
-        print(f"   Error Type: {type(e).__name__}")
-        print(f"   Error: {e}")
+        print(f"   ❌ GROQ TIMEOUT ERROR: {e}")
     except Exception as e:
-        print("   ❌ GROQ UNKNOWN ERROR")
-        print(f"   Error Type: {type(e).__name__}")
-        print(f"   Error: {e}")
+        print(f"   ❌ GROQ ERROR: {e}")
         
     return None
 
