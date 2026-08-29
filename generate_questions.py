@@ -206,7 +206,6 @@ current_q_count = chapter_counts.get(chapter, 0)
 print(f"आजचा विषय: {subject} - {chapter} | (आतापर्यंत {current_q_count}/{TARGET_QUESTIONS_PER_CHAPTER} प्रश्न कव्हर झाले आहेत)")
 
 # ----------------- ४. GEMINI MODEL SETUP -----------------
-# 🚀 ४०४ एरर दूर करण्यासाठी अचूक नवीन मॉडेल
 VALID_GEMINI_MODEL = "models/gemini-3.6-flash"
 
 if not GEMINI_API_KEY: 
@@ -229,21 +228,33 @@ RULES FOR SCORING & FORMAT:
 - Output strictly valid JSON without markdown formatting.
 """
 
-# ----------------- AI CALL FUNCTIONS (STRICT FAILURES) -----------------
-def call_gemini():
+# ----------------- AI CALL FUNCTIONS (WITH SMART 429 LOGIC) -----------------
+def call_gemini(retries=3):
     url = f"https://generativelanguage.googleapis.com/v1beta/{VALID_GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY}"
     payload = {"contents": [{"parts": [{"text": prompt}]}], "generationConfig": {"temperature": 0.7}}
     headers = {"Content-Type": "application/json"}
     
-    response = requests.post(url, json=payload, headers=headers)
-    if response.status_code != 200:
-        raise Exception(f"Gemini API Crashed! HTTP {response.status_code}: {response.text}")
-        
-    data = response.json()
-    if 'candidates' in data:
-        return data['candidates'][0]['content']['parts'][0]['text']
-    else:
-        raise Exception(f"Gemini API returned invalid response: {data}")
+    for attempt in range(retries):
+        response = requests.post(url, json=payload, headers=headers)
+        if response.status_code == 200:
+            data = response.json()
+            if 'candidates' in data:
+                return data['candidates'][0]['content']['parts'][0]['text']
+            else:
+                raise Exception(f"Gemini API returned invalid response: {data}")
+        elif response.status_code == 429:
+            # 🚀 स्मार्ट लॉजिक: Daily Quota vs RPM तपासणे
+            err_text = response.text.lower()
+            if "free_tier_requests" in err_text or "quota exceeded" in err_text:
+                print(f"   🚨 Gemini Daily Quota (किंवा मोठा Quota) संपला आहे. पुन्हा प्रयत्न करण्यात अर्थ नाही.")
+                raise Exception(f"Gemini Daily Quota Exceeded! HTTP 429: {response.text}")
+            else:
+                print(f"   ⏳ Gemini API RPM लिमिट (Rate Limit). 60 सेकंद थांबून पुन्हा प्रयत्न करत आहे... (प्रयत्न {attempt + 1}/{retries})")
+                time.sleep(60)
+        else:
+            raise Exception(f"Gemini API Crashed! HTTP {response.status_code}: {response.text}")
+            
+    raise Exception("Gemini API Failed after multiple retries due to Rate Limits.")
 
 def standardize_option(ans_str):
     if not ans_str:
@@ -257,12 +268,11 @@ def standardize_option(ans_str):
 
 # ----------------- GROQ DYNAMIC MODEL SETUP -----------------
 VALID_GROQ_MODEL = None
-GROQ_DISABLED_FOR_BATCH = False # 🚀 ग्लोबल स्विच (एरर आल्यास Groq थांबवण्यासाठी)
+GROQ_DISABLED_FOR_BATCH = False 
 
 def get_valid_groq_model():
     global VALID_GROQ_MODEL, GROQ_DISABLED_FOR_BATCH
     
-    # 🚀 एकदा मॉडेल निवडले की तेच Q1 ते Q20 साठी वापरले जाईल (पुन्हा API Call नाही)
     if VALID_GROQ_MODEL: 
         return VALID_GROQ_MODEL 
         
@@ -272,7 +282,6 @@ def get_valid_groq_model():
         
     headers = {"Authorization": f"Bearer {GROQ_API_KEY}"}
     
-    # 🚀 नवीन Preferred Models लिस्ट (सर्वात स्मार्ट मॉडेल्सला प्राधान्य)
     preferred_models = [
         "llama-3.3-70b-versatile",
         "llama-3.1-8b-instant",
@@ -281,20 +290,18 @@ def get_valid_groq_model():
     ]
     
     try:
-        print("   🔎 Groq चे उपलब्ध मॉडेल्स (Available Models) तपासत आहे...")
+        print("   🔎 Groq चे उपलब्ध मॉडेल्स तपासत आहे...")
         res = requests.get("https://api.groq.com/openai/v1/models", headers=headers, timeout=10)
         
         if res.status_code == 200:
             available_models = [m['id'] for m in res.json().get('data', [])]
             
-            # प्राधान्यानुसार मॉडेल फिल्टर करणे
             for pref in preferred_models:
                 if pref in available_models:
                     print(f"   ✅ Groq साठी योग्य मॉडेल सापडले: {pref}")
                     VALID_GROQ_MODEL = pref
                     return pref
                     
-            # जर Preferred लिस्ट मधील एकही नसेल, तर उपलब्ध असलेल्यांपैकी पहिले मॉडेल वापरणे
             if available_models:
                 print(f"   ⚠️ Preferred मॉडेल नाही. उपलब्ध मॉडेल वापरत आहे: {available_models[0]}")
                 VALID_GROQ_MODEL = available_models[0]
@@ -302,12 +309,11 @@ def get_valid_groq_model():
         else:
             print(f"   ❌ Groq Models Fetch Error: {res.status_code}")
             if res.status_code in [401, 403, 404]: 
-                GROQ_DISABLED_FOR_BATCH = True # 🚀 सुरवातीलाच एरर आला, तर Groq कायमचा बंद
+                GROQ_DISABLED_FOR_BATCH = True 
                 
     except Exception as e:
         print(f"   ❌ Groq Models Fetch Error: {e}")
         
-    # काहीच सापडले नाही तर Default Fallback
     VALID_GROQ_MODEL = "llama-3.3-70b-versatile"
     return VALID_GROQ_MODEL
 
@@ -315,7 +321,6 @@ def get_valid_groq_model():
 def verify_with_groq(q_text, optA, optB, optC, optD):
     global GROQ_DISABLED_FOR_BATCH
     
-    # 🚀 जर मागच्या प्रश्नात Groq फेल झाले असेल, तर थेट बायपास करा!
     if GROQ_DISABLED_FOR_BATCH or not GROQ_API_KEY:
         print("   ⚠️ Groq Verification Skipped (Disabled due to previous error).")
         return None
@@ -324,7 +329,7 @@ def verify_with_groq(q_text, optA, optB, optC, optD):
     headers = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
     selected_model = get_valid_groq_model()
     
-    if GROQ_DISABLED_FOR_BATCH: # मॉडेल चेक करताना एरर आला असेल तर पुन्हा चेक
+    if GROQ_DISABLED_FOR_BATCH: 
         return None
 
     verify_prompt = f"""You are an expert NEET Exam Verifier. Solve this question independently.
@@ -334,7 +339,7 @@ B) {optB}
 C) {optC}
 D) {optD}
 
-Which single option is correct? Return ONLY a valid JSON object strictly using a single letter: {{"correctOption": "A"}} (or B/C/D). Do not write 'Option A' or the full answer text."""
+Which single option is correct? Return ONLY a valid JSON object strictly using a single letter: {{"correctOption": "A"}} (or B/C/D)."""
     
     payload = {
         "model": selected_model,
@@ -349,12 +354,9 @@ Which single option is correct? Return ONLY a valid JSON object strictly using a
         
         if response.status_code != 200:
             print(f"   ❌ Groq HTTP Status: {response.status_code}")
-            
-            # 🚀 सर्वात महत्त्वाचे लॉजिक: जर 404 (Model not found) किंवा 401/403 आला, तर Groq कायमचे बंद करा
             if response.status_code in [404, 401, 403]:
                 print("   🚨 Critical Groq Error! पुढील सर्व प्रश्नांसाठी Groq पडताळणी थांबवत आहे (Disabled).")
                 GROQ_DISABLED_FOR_BATCH = True
-                
             response.raise_for_status()
         
         data = response.json()
@@ -442,14 +444,23 @@ Explain the underlying core concept, clearly state why the correct option is the
     payload = {"contents": [{"parts": [{"text": explain_prompt}]}], "generationConfig": {"temperature": 0.3}}
     headers = {"Content-Type": "application/json"}
     
-    try:
-        response = requests.post(url, json=payload, headers=headers, timeout=20)
-        if response.status_code == 200:
-            data = response.json()
-            if 'candidates' in data and len(data['candidates']) > 0:
-                return data['candidates'][0]['content']['parts'][0]['text'].strip()
-    except Exception as e:
-        pass
+    for attempt in range(2): 
+        try:
+            response = requests.post(url, json=payload, headers=headers, timeout=20)
+            if response.status_code == 200:
+                data = response.json()
+                if 'candidates' in data and len(data['candidates']) > 0:
+                    return data['candidates'][0]['content']['parts'][0]['text'].strip()
+            elif response.status_code == 429:
+                err_text = response.text.lower()
+                if "free_tier_requests" in err_text or "quota exceeded" in err_text:
+                    print("   🚨 Gemini Daily Quota संपला आहे. स्पष्टीकरणासाठी Gemini बायपास करत आहे.")
+                    return "" # Immediate fallback
+                else:
+                    print("   ⏳ Gemini Rate Limit (RPM). 30 सेकंद थांबून पुन्हा प्रयत्न करत आहे...")
+                    time.sleep(30)
+        except Exception as e:
+            pass
     return ""
 
 # ----------------- ६. GENERATION & MULTI-AI VERIFICATION -----------------
@@ -510,7 +521,6 @@ try:
                 consensus_failed_count += 1
                 continue
         else:
-            # जर Groq Bypass झाले तर Gemini चे उत्तर मान्य केले जाते
             print(f"   ⚠️ Q{idx}: Groq Verification Bypassed. (Gemini च्या उत्तरावर अवलंबून आहे: {gemini_ans})")
 
         print(f"   ⏳ Q{idx}: OpenRouter कडून सविस्तर स्पष्टीकरण घेत आहे...")
