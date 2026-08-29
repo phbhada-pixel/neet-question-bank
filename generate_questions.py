@@ -206,7 +206,7 @@ current_q_count = chapter_counts.get(chapter, 0)
 print(f"आजचा विषय: {subject} - {chapter} | (आतापर्यंत {current_q_count}/{TARGET_QUESTIONS_PER_CHAPTER} प्रश्न कव्हर झाले आहेत)")
 
 # ----------------- ४. GEMINI MODEL SETUP -----------------
-# 🚀 हा सर्वात महत्वाचा फिक्स आहे (४०४ एरर दूर करण्यासाठी)
+# 🚀 ४०४ एरर दूर करण्यासाठी अचूक नवीन मॉडेल
 VALID_GEMINI_MODEL = "models/gemini-3.6-flash"
 
 if not GEMINI_API_KEY: 
@@ -257,43 +257,58 @@ def standardize_option(ans_str):
 
 # ----------------- GROQ DYNAMIC MODEL SETUP -----------------
 VALID_GROQ_MODEL = None
-GROQ_DISABLED_FOR_BATCH = False # 🚀 नवीन ग्लोबल स्विच (एरर आल्यास Groq थांबवण्यासाठी)
+GROQ_DISABLED_FOR_BATCH = False # 🚀 ग्लोबल स्विच (एरर आल्यास Groq थांबवण्यासाठी)
 
 def get_valid_groq_model():
     global VALID_GROQ_MODEL, GROQ_DISABLED_FOR_BATCH
+    
+    # 🚀 एकदा मॉडेल निवडले की तेच Q1 ते Q20 साठी वापरले जाईल (पुन्हा API Call नाही)
     if VALID_GROQ_MODEL: 
         return VALID_GROQ_MODEL 
         
     if not GROQ_API_KEY: 
         GROQ_DISABLED_FOR_BATCH = True
-        return "llama-3.1-8b-instant"
+        return "llama-3.3-70b-versatile"
         
     headers = {"Authorization": f"Bearer {GROQ_API_KEY}"}
-    preferred_models = ["llama-3.1-8b-instant", "llama3-8b-8192", "mixtral-8x7b-32768", "gemma2-9b-it"]
+    
+    # 🚀 नवीन Preferred Models लिस्ट (सर्वात स्मार्ट मॉडेल्सला प्राधान्य)
+    preferred_models = [
+        "llama-3.3-70b-versatile",
+        "llama-3.1-8b-instant",
+        "openai/gpt-oss-20b",
+        "openai/gpt-oss-120b"
+    ]
     
     try:
-        print("   🔎 Groq चे उपलब्ध मॉडेल्स तपासत आहे...")
+        print("   🔎 Groq चे उपलब्ध मॉडेल्स (Available Models) तपासत आहे...")
         res = requests.get("https://api.groq.com/openai/v1/models", headers=headers, timeout=10)
         
         if res.status_code == 200:
             available_models = [m['id'] for m in res.json().get('data', [])]
+            
+            # प्राधान्यानुसार मॉडेल फिल्टर करणे
             for pref in preferred_models:
                 if pref in available_models:
                     print(f"   ✅ Groq साठी योग्य मॉडेल सापडले: {pref}")
                     VALID_GROQ_MODEL = pref
                     return pref
+                    
+            # जर Preferred लिस्ट मधील एकही नसेल, तर उपलब्ध असलेल्यांपैकी पहिले मॉडेल वापरणे
             if available_models:
+                print(f"   ⚠️ Preferred मॉडेल नाही. उपलब्ध मॉडेल वापरत आहे: {available_models[0]}")
                 VALID_GROQ_MODEL = available_models[0]
                 return available_models[0]
         else:
             print(f"   ❌ Groq Models Fetch Error: {res.status_code}")
             if res.status_code in [401, 403, 404]: 
-                GROQ_DISABLED_FOR_BATCH = True # 🚀 जर सुरवातीलाच एरर आला, तर Groq कायमचा बंद
+                GROQ_DISABLED_FOR_BATCH = True # 🚀 सुरवातीलाच एरर आला, तर Groq कायमचा बंद
                 
     except Exception as e:
         print(f"   ❌ Groq Models Fetch Error: {e}")
         
-    VALID_GROQ_MODEL = "llama-3.1-8b-instant"
+    # काहीच सापडले नाही तर Default Fallback
+    VALID_GROQ_MODEL = "llama-3.3-70b-versatile"
     return VALID_GROQ_MODEL
 
 # ----------------- VERIFIER 2: GROQ (SMART VERIFICATION) -----------------
@@ -495,7 +510,8 @@ try:
                 consensus_failed_count += 1
                 continue
         else:
-            print(f"⚠️ Q{idx}: Skipped Verification (Groq Failed/Unavailable)")
+            # जर Groq Bypass झाले तर Gemini चे उत्तर मान्य केले जाते
+            print(f"   ⚠️ Q{idx}: Groq Verification Bypassed. (Gemini च्या उत्तरावर अवलंबून आहे: {gemini_ans})")
 
         print(f"   ⏳ Q{idx}: OpenRouter कडून सविस्तर स्पष्टीकरण घेत आहे...")
         final_explanation = get_detailed_explanation_from_openrouter(q_text, optA, optB, optC, optD, gemini_ans)
@@ -531,7 +547,7 @@ try:
     if len(rows_to_add) > 0:
         try:
             supabase.table(TABLE_NAME).insert(rows_to_add).execute()
-            print(f"\n🎉 यशस्वी! {saved_count} १००% व्हेरीफाय झालेले प्रश्न सविस्तर स्पष्टीकरणासह Supabase मध्ये सेव्ह झाले. (रिजेक्टेड: {consensus_failed_count}, डुप्लिकेट: {duplicate_count}).")
+            print(f"\n🎉 यशस्वी! {saved_count} व्हेरीफाय झालेले प्रश्न सविस्तर स्पष्टीकरणासह Supabase मध्ये सेव्ह झाले. (रिजेक्टेड: {consensus_failed_count}, डुप्लिकेट: {duplicate_count}).")
         except Exception as e:
             print(f"\n❌ Supabase मध्ये सेव्ह करताना एरर आला: {e}")
             exit(1)
