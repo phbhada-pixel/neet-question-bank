@@ -14,6 +14,13 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY") 
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY")
 
+# --- GROQ API KEY DIAGNOSTICS ---
+if GROQ_API_KEY:
+    print("✅ GROQ_API_KEY उपलब्ध आहे")
+    print(f"   Key length: {len(GROQ_API_KEY)}")
+else:
+    print("❌ GROQ_API_KEY उपलब्ध नाही")
+
 # --- SUPABASE CREDENTIALS ---
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
@@ -199,7 +206,6 @@ current_q_count = chapter_counts.get(chapter, 0)
 print(f"आजचा विषय: {subject} - {chapter} | (आतापर्यंत {current_q_count}/{TARGET_QUESTIONS_PER_CHAPTER} प्रश्न कव्हर झाले आहेत)")
 
 # ----------------- ४. GEMINI MODEL SETUP -----------------
-# 🚀 हा सर्वात महत्वाचा फिक्स आहे (४०४ एरर दूर करण्यासाठी)
 VALID_GEMINI_MODEL = "models/gemini-3.6-flash"
 
 if not GEMINI_API_KEY: 
@@ -222,7 +228,7 @@ RULES FOR SCORING & FORMAT:
 - Output strictly valid JSON without markdown formatting.
 """
 
-# ----------------- AI CALL FUNCTIONS (STRICT FAILURES) -----------------
+# ----------------- AI CALL FUNCTIONS -----------------
 def call_gemini():
     url = f"https://generativelanguage.googleapis.com/v1beta/{VALID_GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY}"
     payload = {"contents": [{"parts": [{"text": prompt}]}], "generationConfig": {"temperature": 0.7}}
@@ -248,7 +254,7 @@ def standardize_option(ans_str):
     if "D" in ans: return "D"
     return ans
 
-# ----------------- VERIFIER 2: GROQ -----------------
+# ----------------- VERIFIER 2: GROQ (WITH DIAGNOSTICS) -----------------
 def verify_with_groq(q_text, optA, optB, optC, optD):
     if not GROQ_API_KEY:
         print("⚠️ GROQ_API_KEY missing, skipping Groq verification.")
@@ -274,17 +280,40 @@ Which single option is correct? Return ONLY a valid JSON object strictly using a
     }
     
     try:
-        res = requests.post(url, json=payload, headers=headers, timeout=15)
-        if res.status_code == 200:
-            data = res.json()
-            content = data['choices'][0]['message']['content']
-            parsed = json.loads(content)
-            return standardize_option(parsed.get('correctOption', ''))
+        print("   🔎 Groq API call सुरू...")
+        response = requests.post(url, json=payload, headers=headers, timeout=15)
+        
+        if response.status_code != 200:
+            print(f"   🔎 Groq HTTP Status: {response.status_code}")
+            print(f"   🔎 Groq Response: {response.text[:2000]}")
+            
+        response.raise_for_status()
+        
+        data = response.json()
+        content = data['choices'][0]['message']['content']
+        parsed = json.loads(content)
+        return standardize_option(parsed.get('correctOption', ''))
+        
+    except requests.exceptions.HTTPError as e:
+        print("   ❌ GROQ HTTP ERROR")
+        print(f"   Status Code: {response.status_code}")
+        print(f"   Response: {response.text[:2000]}")
+        print(f"   Error: {e}")
+    except requests.exceptions.Timeout as e:
+        print("   ❌ GROQ TIMEOUT ERROR")
+        print(f"   Error: {e}")
+    except requests.exceptions.RequestException as e:
+        print("   ❌ GROQ REQUEST ERROR")
+        print(f"   Error Type: {type(e).__name__}")
+        print(f"   Error: {e}")
     except Exception as e:
-        pass
+        print("   ❌ GROQ UNKNOWN ERROR")
+        print(f"   Error Type: {type(e).__name__}")
+        print(f"   Error: {e}")
+        
     return None
 
-# 🚀 ----------------- DETAILED EXPLANATION GENERATOR (STRICT + AUTO-FALLBACK) -----------------
+# 🚀 ----------------- DETAILED EXPLANATION GENERATOR (AUTO-FALLBACK) -----------------
 def get_detailed_explanation_from_openrouter(q_text, optA, optB, optC, optD, correct_ans):
     if not OPENROUTER_API_KEY:
         return "" 
@@ -423,7 +452,7 @@ try:
                 consensus_failed_count += 1
                 continue
         else:
-            print(f"⚠️ Q{idx}: Skipped Verification (Groq Unavailable)")
+            print(f"⚠️ Q{idx}: Skipped Verification (Groq Failed/Unavailable)")
 
         print(f"   ⏳ Q{idx}: OpenRouter कडून सविस्तर स्पष्टीकरण घेत आहे...")
         final_explanation = get_detailed_explanation_from_openrouter(q_text, optA, optB, optC, optD, gemini_ans)
