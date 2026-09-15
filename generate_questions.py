@@ -205,8 +205,9 @@ topics = selected_topic["topics"]
 current_q_count = chapter_counts.get(chapter, 0)
 print(f"आजचा विषय: {subject} - {chapter} | (आतापर्यंत {current_q_count}/{TARGET_QUESTIONS_PER_CHAPTER} प्रश्न कव्हर झाले आहेत)")
 
-# ----------------- ४. GEMINI MODEL SETUP -----------------
+# ----------------- ४. GEMINI MODEL SETUP (विथ वेक्टर्स) -----------------
 VALID_GEMINI_MODEL = "models/gemini-3.6-flash"
+GEMINI_EMBEDDING_MODEL = "models/text-embedding-004" # 🚀 नवीन Vector Embedding मॉडेल
 
 if not GEMINI_API_KEY: 
     raise Exception("CRITICAL ERROR: GEMINI_API_KEY is missing! Halting process.")
@@ -228,7 +229,7 @@ RULES FOR SCORING & FORMAT:
 - Output strictly valid JSON without markdown formatting.
 """
 
-# ----------------- AI CALL FUNCTIONS (WITH SMART 429 LOGIC) -----------------
+# ----------------- AI CALL FUNCTIONS -----------------
 def call_gemini(retries=3):
     url = f"https://generativelanguage.googleapis.com/v1beta/{VALID_GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY}"
     payload = {"contents": [{"parts": [{"text": prompt}]}], "generationConfig": {"temperature": 0.7}}
@@ -243,7 +244,6 @@ def call_gemini(retries=3):
             else:
                 raise Exception(f"Gemini API returned invalid response: {data}")
         elif response.status_code == 429:
-            # 🚀 स्मार्ट लॉजिक: Daily Quota vs RPM तपासणे
             err_text = response.text.lower()
             if "free_tier_requests" in err_text or "quota exceeded" in err_text:
                 print(f"   🚨 Gemini Daily Quota (किंवा मोठा Quota) संपला आहे. पुन्हा प्रयत्न करण्यात अर्थ नाही.")
@@ -255,6 +255,23 @@ def call_gemini(retries=3):
             raise Exception(f"Gemini API Crashed! HTTP {response.status_code}: {response.text}")
             
     raise Exception("Gemini API Failed after multiple retries due to Rate Limits.")
+
+# 🚀 VECTOR EMBEDDING FUNCTION (मॅथेमॅटिकल कोड बनवण्यासाठी)
+def get_vector_embedding(text):
+    url = f"https://generativelanguage.googleapis.com/v1beta/{GEMINI_EMBEDDING_MODEL}:embedContent?key={GEMINI_API_KEY}"
+    payload = {
+        "model": GEMINI_EMBEDDING_MODEL,
+        "content": {"parts": [{"text": text}]}
+    }
+    headers = {"Content-Type": "application/json"}
+    
+    try:
+        res = requests.post(url, json=payload, headers=headers)
+        if res.status_code == 200:
+            return res.json().get('embedding', {}).get('values', [])
+    except Exception as e:
+        print(f"   ⚠️ Embedding Error: {e}")
+    return []
 
 def standardize_option(ans_str):
     if not ans_str:
@@ -373,7 +390,7 @@ Which single option is correct? Return ONLY a valid JSON object strictly using a
         
     return None
 
-# 🚀 ----------------- DETAILED EXPLANATION GENERATOR (AUTO-FALLBACK) -----------------
+# ----------------- DETAILED EXPLANATION GENERATOR (AUTO-FALLBACK) -----------------
 def get_detailed_explanation_from_openrouter(q_text, optA, optB, optC, optD, correct_ans):
     if not OPENROUTER_API_KEY:
         return "" 
@@ -486,7 +503,7 @@ try:
     ist_time = datetime.utcnow() + timedelta(hours=5, minutes=30)
     timestamp = ist_time.strftime("%Y-%m-%d %H:%M:%S")
 
-    print("\n🔍 --- MULTI-AI VERIFICATION STARTED (Gemini ➔ Groq ➔ OpenRouter) ---")
+    print("\n🔍 --- VECTOR DEDUPLICATION & MULTI-AI VERIFICATION ---")
     
     for idx, q in enumerate(questions, 1):
         # 🚀 Rate Limit वाचवण्यासाठी प्रत्येक प्रश्नानंतर ४ सेकंद थांबवणे
@@ -500,14 +517,42 @@ try:
         
         gemini_ans = standardize_option(q.get('correctOption', ''))
 
-        if not q_text or q_text in existing_questions_list:
-            duplicate_count += 1
-            continue 
-
         scores = q.get('quality_score', {})
         overall = float(scores.get('overall_score', 0)) if isinstance(scores, dict) else 0
         if overall < 85 and overall != 0:
             print(f"❌ Q{idx}: Reject (Low Quality Score: {overall})")
+            continue
+
+        # 🚀 १. Exact Match (जुन्या प्रश्नांसाठी)
+        if not q_text or q_text in existing_questions_list:
+            duplicate_count += 1
+            print(f"   ⚠️ Q{idx}: Duplicate (Exact Match). Skipped.")
+            continue 
+
+        # 🚀 २. Semantic Vector Match (अर्थावरून डुप्लिकेट ओळखणे)
+        q_embedding = get_vector_embedding(q_text)
+        is_semantic_duplicate = False
+
+        if q_embedding:
+            try:
+                # Supabase RPC कॉल: ०.८५ (८५%) पेक्षा जास्त अर्थ जुळतोय का तपासणे
+                match_res = supabase.rpc('match_questions', {
+                    'query_embedding': q_embedding, 
+                    'match_threshold': 0.85, 
+                    'match_count': 1
+                }).execute()
+                
+                if match_res.data and len(match_res.data) > 0:
+                    is_semantic_duplicate = True
+                    matched_q = match_res.data[0]['Question']
+                    sim_score = round(match_res.data[0]['similarity'] * 100, 1)
+                    print(f"   ⚠️ Q{idx}: Semantic Vector Duplicate Found! ({sim_score}% Match)")
+                    print(f"      Matched with DB: {matched_q[:80]}...")
+            except Exception as e:
+                pass # जर RPC नसेल किंवा डेटाबेस एरर असेल तर पुढे जा
+                
+        if is_semantic_duplicate:
+            duplicate_count += 1
             continue
 
         print(f"   ⏳ Q{idx}: Groq कडून पडताळणी करत आहे...")
@@ -548,8 +593,14 @@ try:
             "Detailed Explanation": final_explanation,
             "Smiles": q.get('smiles_code', ''), 
             "Image Reference": q.get('image_reference', ''), 
-            "Timestamp": timestamp
+            "Timestamp": timestamp,
+            "embedding": q_embedding # 🚀 वेक्टर डेटाबेसमध्ये सेव्ह करणे
         }
+        
+        # जर embedding रिकामी असेल (API फेल), तर ती पाठवू नये म्हणजे डेटाबेस एरर येणार नाही
+        if not q_embedding:
+            del row["embedding"]
+
         rows_to_add.append(row)
         saved_count += 1
 
@@ -557,7 +608,7 @@ try:
     if len(rows_to_add) > 0:
         try:
             supabase.table(TABLE_NAME).insert(rows_to_add).execute()
-            print(f"\n🎉 यशस्वी! {saved_count} व्हेरीफाय झालेले प्रश्न सविस्तर स्पष्टीकरणासह Supabase मध्ये सेव्ह झाले. (रिजेक्टेड: {consensus_failed_count}, डुप्लिकेट: {duplicate_count}).")
+            print(f"\n🎉 यशस्वी! {saved_count} व्हेरीफाय झालेले प्रश्न (वेक्टर सहित) Supabase मध्ये सेव्ह झाले. (रिजेक्टेड: {consensus_failed_count}, डुप्लिकेट: {duplicate_count}).")
         except Exception as e:
             print(f"\n❌ Supabase मध्ये सेव्ह करताना एरर आला: {e}")
             exit(1)
